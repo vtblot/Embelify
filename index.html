@@ -58,7 +58,15 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc">Détourage IA local (@imgly) → PNG alpha.</p>
+            <p class="step-desc">Enlève le fond (noir uni, etc.) → PNG alpha.</p>
+            <div class="step-extra" id="bg-mode-wrap">
+              <label class="sub-label" for="bg_mode">Méthode</label>
+              <select id="bg_mode" name="bg_mode">
+                <option value="auto" selected>Auto — aplats ou photo</option>
+                <option value="chroma">Fond uni (logos, grilles, noir…)</option>
+                <option value="ai">IA photo (sujet / arrière-plan)</option>
+              </select>
+            </div>
           </div>
 
           <div class="step">

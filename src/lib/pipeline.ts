@@ -1,10 +1,14 @@
+import { looksLikeFlatGraphic, removeSolidBackground } from "./chroma";
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
 
 export type UpscaleFactor = 1 | 2 | 4;
+/** auto: fond uni pour logos/aplats, IA pour photos */
+export type BgMode = "auto" | "chroma" | "ai";
 
 export type PipelineOptions = {
   upscale: UpscaleFactor;
   removeBg: boolean;
+  bgMode?: BgMode;
   toSvg: boolean;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
@@ -218,12 +222,11 @@ export function preloadModels(): void {
   void getUpscaler(2).catch(() => undefined);
 }
 
-async function removeBackgroundFromCanvas(
+async function removeBackgroundAi(
   canvas: HTMLCanvasElement,
   opts: PipelineOptions,
 ): Promise<HTMLCanvasElement> {
-  throwIfAborted(opts.signal);
-  progress(opts, "Détourage du fond…");
+  progress(opts, "Détourage IA (photos)…");
   const { removeBackground } = await import("@imgly/background-removal");
 
   const run = async (device: "gpu" | "cpu") => {
@@ -233,7 +236,7 @@ async function removeBackgroundFromCanvas(
       ...rembgConfig(device),
       progress: (key, current, total) => {
         if (key.startsWith("fetch:") || key.startsWith("compute:")) {
-          progress(opts, `Détourage (${key} ${current}/${total})…`);
+          progress(opts, `Détourage IA (${key} ${current}/${total})…`);
         }
       },
     });
@@ -258,6 +261,34 @@ async function removeBackgroundFromCanvas(
   const out = bitmapToCanvas(bitmap);
   bitmap.close();
   return out;
+}
+
+async function removeBackgroundFromCanvas(
+  canvas: HTMLCanvasElement,
+  opts: PipelineOptions,
+): Promise<HTMLCanvasElement> {
+  throwIfAborted(opts.signal);
+  const mode: BgMode = opts.bgMode ?? "auto";
+
+  let useChroma = mode === "chroma";
+  if (mode === "auto") {
+    useChroma = looksLikeFlatGraphic(canvas);
+    progress(
+      opts,
+      useChroma
+        ? "Fond uni détecté — détourage par couleur (logos / aplats)…"
+        : "Photo détectée — détourage IA…",
+    );
+  }
+
+  if (useChroma) {
+    progress(opts, "Suppression du fond uni (flood-fill depuis les bords)…");
+    const out = removeSolidBackground(canvas);
+    wipeCanvas(canvas);
+    return out;
+  }
+
+  return removeBackgroundAi(canvas, opts);
 }
 
 function rasterToSvgInWorker(canvas: HTMLCanvasElement): Promise<string> {

@@ -3,6 +3,7 @@ import {
   disposePipelineResources,
   preloadModels,
   runPipeline,
+  type BgMode,
   type UpscaleFactor,
 } from "./lib/pipeline";
 import {
@@ -27,6 +28,14 @@ const previewSvg = document.getElementById("preview-svg") as HTMLDivElement;
 const previewLabel = document.getElementById("preview-label") as HTMLParagraphElement;
 const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
 const clearBtn = document.getElementById("clear-btn") as HTMLButtonElement;
+const removeBgToggle = document.getElementById("remove_bg") as HTMLInputElement;
+const bgModeWrap = document.getElementById("bg-mode-wrap") as HTMLElement;
+
+function syncBgModeVisibility() {
+  bgModeWrap.hidden = !removeBgToggle.checked;
+}
+removeBgToggle.addEventListener("change", syncBgModeVisibility);
+syncBgModeVisibility();
 
 function setStatus(message: string, isError = false) {
   statusEl.textContent = message;
@@ -122,6 +131,8 @@ form.addEventListener("submit", async (e) => {
     (document.getElementById("upscale") as HTMLSelectElement).value,
   ) as UpscaleFactor;
   const removeBg = (document.getElementById("remove_bg") as HTMLInputElement).checked;
+  const bgMode = (document.getElementById("bg_mode") as HTMLSelectElement)
+    .value as BgMode;
   const toSvg = (document.getElementById("to_svg") as HTMLInputElement).checked;
 
   if (upscale === 1 && !removeBg && !toSvg) {
@@ -139,6 +150,7 @@ form.addEventListener("submit", async (e) => {
     const result = await runPipeline(file, {
       upscale,
       removeBg,
+      bgMode,
       toSvg,
       signal,
       onProgress: (msg) => setStatus(msg),

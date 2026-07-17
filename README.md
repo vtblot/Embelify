@@ -9,7 +9,8 @@ App web **100 % navigateur** : upscale, fond transparent, conversion SVG.
 ## Pipeline (ordre fixe)
 
 1. **Upscale** ×2 / ×4 — UpscalerJS (ESRGAN slim, tenseurs + patchSize), fallback canvas  
-2. **Fond transparent** — `@imgly/background-removal` (GPU si dispo, worker, modèle medium)  
+2. **Fond transparent** — **Auto** : fond uni (flood-fill) pour logos/aplats, IA photo sinon  
+   (`Fond uni` forcé pour noir/aplats ; `IA photo` pour sujets photo)  
 3. **SVG** — ImageTracer dans un **Web Worker**
 
 Optimisations : préchargement idle des modèles, réutilisation des sessions IA, plafonds de résolution, export WebP quand pas d’alpha, purge canvas / ObjectURL.

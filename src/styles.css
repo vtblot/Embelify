@@ -275,6 +275,28 @@ body {
   opacity: 0.8;
 }
 
+.step-extra {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.65rem 0 0 2.3rem;
+}
+
+.step-extra[hidden] {
+  display: none;
+}
+
+.sub-label {
+  font-size: 0.85rem;
+  color: var(--mist);
+  white-space: nowrap;
+}
+
+.step-extra select {
+  flex: 1;
+  min-width: 0;
+}
+
 select {
   appearance: none;
   background: var(--ink-soft)
