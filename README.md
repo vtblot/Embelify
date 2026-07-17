@@ -1,34 +1,30 @@
 # Embelify
 
-App web **100 % navigateur** : upscale, fond transparent, conversion SVG.
+Browser-only image tool: upscale, transparent background, SVG.
 
-- Aucun stockage d’assets utilisateurs
-- Livraison = **téléchargement** du résultat
-- Fermer l’onglet / couper la session → **mémoire vidée**
+- No user asset storage — delivery = **download**
+- Closing the tab clears the session
+- **English by default**, French optional
+- Sister product: [Spektrografy](https://spektrografy.com) (same company, separate domain)
 
-## Pipeline (ordre fixe)
-
-1. **Upscale** ×2 / ×4 — UpscalerJS (ESRGAN slim, tenseurs + patchSize), fallback canvas  
-2. **Fond transparent** (optionnel)  
-   - **Couleur unie** : logos / fond noir (flood-fill, defringe, érosion 2px du masque)  
-   - **Photo** : découpe sujet (modèle local)  
-   - **Auto** : choisit entre les deux  
-3. **SVG** (optionnel) — ImageTracer dans un **Web Worker**
-
-L’**upscale est optionnel** (désactivé par défaut). L’aperçu se met à jour **en live** à chaque modification.
-
-## Lancer
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-→ http://127.0.0.1:5173
-
-## Build
+Optional env:
 
 ```bash
-npm run build
-npm run preview
+# .env
+VITE_SPEKTROGRAFY_URL=https://your-spektrografy-domain.com
 ```
+
+## Legal
+
+Terms of use: `/terms.html` (linked in the footer as CGU / Terms).
+
+## Notes for Spektrografy / infra
+
+Embelify is client-side today. When you add auth + credits, prefer **one Supabase org** (shared Auth / users if you want SSO later) rather than putting identity only on Railway. Keep Spektrografy’s Railway Hobby for that product’s app hosting/compute; Embelify can stay static (or Railway static) and talk to Supabase when monetization lands.

@@ -1,4 +1,13 @@
 import "./styles.css";
+import { BRAND } from "./brand";
+import {
+  applyStaticI18n,
+  detectLocale,
+  getLocale,
+  setLocale,
+  t,
+  type Locale,
+} from "./i18n";
 import {
   disposePipelineResources,
   preloadModels,
@@ -36,50 +45,41 @@ const bgModeWrap = document.getElementById("bg-mode-wrap") as HTMLElement;
 const bgHint = document.getElementById("bg-hint") as HTMLParagraphElement;
 const upscaleSelect = document.getElementById("upscale") as HTMLSelectElement;
 const toSvgToggle = document.getElementById("to_svg") as HTMLInputElement;
+const langSelect = document.getElementById("lang-select") as HTMLSelectElement;
+const sisterLink = document.getElementById("sister-link") as HTMLAnchorElement;
 
 let debounceTimer: number | null = null;
 let runGeneration = 0;
-/** Badge text tied to the generation that last painted the preview. */
-let paintedGeneration = 0;
 
-const STEP_LOADING: Record<PipelineStep, string> = {
-  source: "Lecture de l’image…",
-  upscale: "Upscale en cours…",
-  background: "Fond transparent en cours…",
-  svg: "Conversion SVG en cours…",
-  done: "Finalisation…",
+const STEP_LOADING_KEY: Record<PipelineStep, Parameters<typeof t>[0]> = {
+  source: "badge.source.loading",
+  upscale: "badge.upscale.loading",
+  background: "badge.background.loading",
+  svg: "badge.svg.loading",
+  done: "badge.done.loading",
 };
 
-const STEP_READY: Record<PipelineStep, string> = {
-  source: "Source affichée",
-  upscale: "Upscale OK",
-  background: "Fond transparent OK",
-  svg: "SVG OK",
-  done: "Prêt à télécharger",
+const STEP_READY_KEY: Record<PipelineStep, Parameters<typeof t>[0]> = {
+  source: "badge.source.ready",
+  upscale: "badge.upscale.ready",
+  background: "badge.background.ready",
+  svg: "badge.svg.ready",
+  done: "badge.done.ready",
 };
 
-const BG_HINTS: Record<BgMode, string> = {
-  chroma: "Idéal pour logos / aplats : enlève une couleur de fond (souvent le noir).",
-  auto: "Choisit tout seul : fond uni pour un logo, découpe sujet pour une photo.",
-  ai: "Pour les photos : isole une personne ou un objet. Pas adapté aux logos plats.",
+const BG_HINT_KEY: Record<BgMode, Parameters<typeof t>[0]> = {
+  chroma: "step2.hint.chroma",
+  auto: "step2.hint.auto",
+  ai: "step2.hint.ai",
 };
 
 function syncBgUi() {
   bgModeWrap.hidden = !removeBgToggle.checked;
   bgHint.hidden = !removeBgToggle.checked;
   if (removeBgToggle.checked) {
-    bgHint.textContent = BG_HINTS[bgModeSelect.value as BgMode] ?? BG_HINTS.chroma;
+    bgHint.textContent = t(BG_HINT_KEY[bgModeSelect.value as BgMode] ?? "step2.hint.chroma");
   }
 }
-removeBgToggle.addEventListener("change", () => {
-  syncBgUi();
-  scheduleLiveRun();
-});
-bgModeSelect.addEventListener("change", () => {
-  syncBgUi();
-  scheduleLiveRun();
-});
-syncBgUi();
 
 function setStatus(message: string, isError = false) {
   statusEl.textContent = message;
@@ -95,7 +95,7 @@ function setBadge(text: string, state: "loading" | "ready", generation: number) 
   stepBadge.classList.toggle("is-ready", state === "ready");
   preview.querySelector(".preview-frame")?.classList.toggle("is-busy", state === "loading");
   previewLabel.textContent =
-    state === "loading" ? "Traitement…" : "Aperçu synchronisé";
+    state === "loading" ? t("preview.processing") : t("preview.synced");
 }
 
 function showFileName(file: File | null) {
@@ -137,7 +137,7 @@ async function waitForImgPaint(url: string): Promise<void> {
     try {
       await previewImg.decode();
     } catch {
-      /* ignore decode errors — still painted or broken */
+      /* ignore */
     }
   } else {
     await new Promise<void>((resolve) => {
@@ -149,7 +149,6 @@ async function waitForImgPaint(url: string): Promise<void> {
       previewImg.onerror = () => resolve();
     });
   }
-  // Let the browser paint before flipping the badge to "ready"
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
@@ -173,13 +172,12 @@ async function showCanvasPreview(
   previewSvg.hidden = true;
   previewSvg.innerHTML = "";
   preview.hidden = false;
-  downloadBtn.disabled = true; // not final until run completes (re-enabled at end)
+  downloadBtn.disabled = true;
 
   await waitForImgPaint(previewUrl);
   if (generation !== runGeneration) return;
 
-  paintedGeneration = generation;
-  setBadge(STEP_READY[step], "ready", generation);
+  setBadge(t(STEP_READY_KEY[step]), "ready", generation);
 }
 
 function showSvgPreview(svg: string, generation: number) {
@@ -192,9 +190,8 @@ function showSvgPreview(svg: string, generation: number) {
   previewSvg.hidden = false;
   preview.hidden = false;
   downloadBtn.disabled = false;
-  paintedGeneration = generation;
-  setBadge(STEP_READY.svg, "ready", generation);
-  previewLabel.textContent = "SVG prêt — téléchargez";
+  setBadge(t(STEP_READY_KEY.svg), "ready", generation);
+  previewLabel.textContent = t("preview.svgReady");
 }
 
 function readOptions() {
@@ -209,14 +206,14 @@ function readOptions() {
 async function runLive(reason: "auto" | "manual" = "auto") {
   const file = getSourceFile() ?? fileInput.files?.[0] ?? null;
   if (!file) {
-    if (reason === "manual") setStatus("Choisissez une image.", true);
+    if (reason === "manual") setStatus(t("status.choose"), true);
     return;
   }
   assignSource(file);
 
   const opts = readOptions();
   if (opts.upscale === 1 && !opts.removeBg && !opts.toSvg) {
-    setStatus("Activez au moins une option pour voir un résultat.", true);
+    setStatus(t("status.needOption"), true);
     resetPreviewUi();
     return;
   }
@@ -226,24 +223,23 @@ async function runLive(reason: "auto" | "manual" = "auto") {
   submitBtn.disabled = true;
   downloadBtn.disabled = true;
   preview.hidden = false;
-  setBadge("Préparation…", "loading", myGen);
-  setStatus(
-    reason === "auto"
-      ? "Mise à jour de l’aperçu (patientez pendant le chargement)…"
-      : "Traitement en cours…",
-  );
+  setBadge(t("badge.prep"), "loading", myGen);
+  setStatus(reason === "auto" ? t("status.updating") : t("status.processing"));
 
   try {
     const result = await runPipeline(file, {
       ...opts,
       signal,
       onProgress: (msg) => {
+        // Technical progress from pipeline stays in current language when possible;
+        // keep raw message as fallback for model download progress.
         if (myGen === runGeneration) setStatus(msg);
       },
       onStepStart: (step) => {
         if (myGen !== runGeneration) return;
-        setBadge(STEP_LOADING[step], "loading", myGen);
-        setStatus(STEP_LOADING[step]);
+        const label = t(STEP_LOADING_KEY[step]);
+        setBadge(label, "loading", myGen);
+        setStatus(label);
       },
       onStep: async (step, canvas) => {
         if (myGen !== runGeneration) return;
@@ -268,24 +264,23 @@ async function runLive(reason: "auto" | "manual" = "auto") {
       preview.hidden = false;
       await waitForImgPaint(previewUrl);
       if (myGen !== runGeneration) return;
-      paintedGeneration = myGen;
       downloadBtn.disabled = false;
-      setBadge(STEP_READY.done, "ready", myGen);
+      setBadge(t(STEP_READY_KEY.done), "ready", myGen);
       previewLabel.textContent = opts.removeBg
-        ? "PNG transparent — prêt à télécharger"
-        : "Résultat — prêt à télécharger";
+        ? t("preview.pngReady")
+        : t("preview.resultReady");
     }
 
     downloadBtn.disabled = false;
-    setStatus("Aperçu à jour — téléchargez pour garder le fichier.");
+    setStatus(t("status.ready"));
   } catch (err) {
     if (myGen !== runGeneration) return;
     if (err instanceof DOMException && err.name === "AbortError") {
-      setStatus("Nouvelle mise à jour en cours…");
+      setStatus(t("status.aborted"));
     } else {
-      const message = err instanceof Error ? err.message : "Échec du traitement.";
+      const message = err instanceof Error ? err.message : t("status.fail");
       setStatus(message, true);
-      setBadge("Erreur", "ready", myGen);
+      setBadge(t("badge.error"), "ready", myGen);
     }
   } finally {
     if (myGen === runGeneration) submitBtn.disabled = false;
@@ -295,21 +290,43 @@ async function runLive(reason: "auto" | "manual" = "auto") {
 function scheduleLiveRun() {
   if (!getSourceFile() && !fileInput.files?.[0]) return;
   if (debounceTimer !== null) window.clearTimeout(debounceTimer);
-  // Show immediate feedback that a change was queued
   if (runGeneration > 0 || getSourceFile() || fileInput.files?.[0]) {
     preview.hidden = false;
     stepBadge.hidden = false;
-    stepBadge.textContent = "Changement détecté…";
+    stepBadge.textContent = t("badge.changed");
     stepBadge.classList.add("is-loading");
     stepBadge.classList.remove("is-ready");
-    previewLabel.textContent = "En attente…";
-    setStatus("Option modifiée — recalcul dans un instant…");
+    previewLabel.textContent = t("preview.waiting");
+    setStatus(t("status.optionChanged"));
   }
   debounceTimer = window.setTimeout(() => {
     debounceTimer = null;
     void runLive("auto");
   }, 220);
 }
+
+function refreshI18n() {
+  applyStaticI18n();
+  syncBgUi();
+  langSelect.value = getLocale();
+  if (sisterLink) {
+    sisterLink.href = BRAND.spektrografy.url;
+    sisterLink.textContent = BRAND.spektrografy.name;
+  }
+  // If idle with default status, refresh it
+  if (!getSourceFile() && !fileInput.files?.[0] && !statusEl.classList.contains("is-error")) {
+    setStatus(t("status.drop"));
+  }
+}
+
+removeBgToggle.addEventListener("change", () => {
+  syncBgUi();
+  scheduleLiveRun();
+});
+bgModeSelect.addEventListener("change", () => {
+  syncBgUi();
+  scheduleLiveRun();
+});
 
 ["dragenter", "dragover"].forEach((evt) => {
   dropzone.addEventListener(evt, (e) => {
@@ -349,20 +366,19 @@ toSvgToggle.addEventListener("change", scheduleLiveRun);
 
 downloadBtn.addEventListener("click", () => {
   if (!downloadResult()) {
-    setStatus("Aucun résultat à télécharger.", true);
+    setStatus(t("status.noResult"), true);
     return;
   }
-  setStatus("Résultat téléchargé. Fermer l’onglet efface tout.");
+  setStatus(t("status.downloaded"));
 });
 
 clearBtn.addEventListener("click", async () => {
   runGeneration += 1;
-  paintedGeneration = 0;
   if (debounceTimer !== null) window.clearTimeout(debounceTimer);
   wipeSession();
   clearUiAssets();
   await disposePipelineResources();
-  setStatus("Session vidée.");
+  setStatus(t("status.cleared"));
 });
 
 form.addEventListener("submit", (e) => {
@@ -370,12 +386,19 @@ form.addEventListener("submit", (e) => {
   void runLive("manual");
 });
 
+langSelect.addEventListener("change", () => {
+  setLocale(langSelect.value as Locale);
+  refreshI18n();
+});
+
 installSessionGuards(() => {
   runGeneration += 1;
-  paintedGeneration = 0;
   clearUiAssets();
   void disposePipelineResources();
 });
+
+setLocale(detectLocale());
+refreshI18n();
 
 const ric = (
   window as Window & {

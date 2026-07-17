@@ -1,5 +1,13 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_SPEKTROGRAFY_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 declare module "imagetracerjs" {
   type ImageTracerOptions = Record<string, string | number | boolean>;
 
