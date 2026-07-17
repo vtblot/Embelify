@@ -39,13 +39,23 @@ const toSvgToggle = document.getElementById("to_svg") as HTMLInputElement;
 
 let debounceTimer: number | null = null;
 let runGeneration = 0;
+/** Badge text tied to the generation that last painted the preview. */
+let paintedGeneration = 0;
 
-const STEP_LABELS: Record<PipelineStep, string> = {
-  source: "Image source",
-  upscale: "Après upscale",
-  background: "Après fond transparent",
-  svg: "Après SVG",
-  done: "Résultat",
+const STEP_LOADING: Record<PipelineStep, string> = {
+  source: "Lecture de l’image…",
+  upscale: "Upscale en cours…",
+  background: "Fond transparent en cours…",
+  svg: "Conversion SVG en cours…",
+  done: "Finalisation…",
+};
+
+const STEP_READY: Record<PipelineStep, string> = {
+  source: "Source affichée",
+  upscale: "Upscale OK",
+  background: "Fond transparent OK",
+  svg: "SVG OK",
+  done: "Prêt à télécharger",
 };
 
 const BG_HINTS: Record<BgMode, string> = {
@@ -76,6 +86,18 @@ function setStatus(message: string, isError = false) {
   statusEl.classList.toggle("is-error", isError);
 }
 
+function setBadge(text: string, state: "loading" | "ready", generation: number) {
+  if (generation !== runGeneration) return;
+  preview.hidden = false;
+  stepBadge.hidden = false;
+  stepBadge.textContent = text;
+  stepBadge.classList.toggle("is-loading", state === "loading");
+  stepBadge.classList.toggle("is-ready", state === "ready");
+  preview.querySelector(".preview-frame")?.classList.toggle("is-busy", state === "loading");
+  previewLabel.textContent =
+    state === "loading" ? "Traitement…" : "Aperçu synchronisé";
+}
+
 function showFileName(file: File | null) {
   if (!file) {
     fileName.hidden = true;
@@ -93,6 +115,7 @@ function resetPreviewUi() {
   previewSvg.hidden = true;
   previewSvg.innerHTML = "";
   stepBadge.hidden = true;
+  stepBadge.classList.remove("is-loading", "is-ready");
   downloadBtn.disabled = true;
 }
 
@@ -107,10 +130,41 @@ function assignSource(file: File | null) {
   showFileName(file);
 }
 
-async function showCanvasPreview(canvas: HTMLCanvasElement, step: PipelineStep) {
+async function waitForImgPaint(url: string): Promise<void> {
+  previewImg.src = url;
+  previewImg.hidden = false;
+  if (previewImg.decode) {
+    try {
+      await previewImg.decode();
+    } catch {
+      /* ignore decode errors — still painted or broken */
+    }
+  } else {
+    await new Promise<void>((resolve) => {
+      if (previewImg.complete) {
+        resolve();
+        return;
+      }
+      previewImg.onload = () => resolve();
+      previewImg.onerror = () => resolve();
+    });
+  }
+  // Let the browser paint before flipping the badge to "ready"
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function showCanvasPreview(
+  canvas: HTMLCanvasElement,
+  step: PipelineStep,
+  generation: number,
+) {
+  if (generation !== runGeneration) return;
+
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("preview"))), "image/png");
   });
+  if (generation !== runGeneration) return;
+
   const { previewUrl } = setResult({
     kind: "png",
     blob,
@@ -118,16 +172,18 @@ async function showCanvasPreview(canvas: HTMLCanvasElement, step: PipelineStep) 
   });
   previewSvg.hidden = true;
   previewSvg.innerHTML = "";
-  previewImg.src = previewUrl;
-  previewImg.hidden = false;
   preview.hidden = false;
-  downloadBtn.disabled = false;
-  stepBadge.hidden = false;
-  stepBadge.textContent = STEP_LABELS[step];
-  previewLabel.textContent = "Aperçu live";
+  downloadBtn.disabled = true; // not final until run completes (re-enabled at end)
+
+  await waitForImgPaint(previewUrl);
+  if (generation !== runGeneration) return;
+
+  paintedGeneration = generation;
+  setBadge(STEP_READY[step], "ready", generation);
 }
 
-function showSvgPreview(svg: string) {
+function showSvgPreview(svg: string, generation: number) {
+  if (generation !== runGeneration) return;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   setResult({ kind: "svg", blob, svg, filename: "embelify.svg" });
   previewImg.hidden = true;
@@ -136,9 +192,9 @@ function showSvgPreview(svg: string) {
   previewSvg.hidden = false;
   preview.hidden = false;
   downloadBtn.disabled = false;
-  stepBadge.hidden = false;
-  stepBadge.textContent = STEP_LABELS.svg;
-  previewLabel.textContent = "Aperçu SVG";
+  paintedGeneration = generation;
+  setBadge(STEP_READY.svg, "ready", generation);
+  previewLabel.textContent = "SVG prêt — téléchargez";
 }
 
 function readOptions() {
@@ -169,7 +225,13 @@ async function runLive(reason: "auto" | "manual" = "auto") {
   const signal = beginWork();
   submitBtn.disabled = true;
   downloadBtn.disabled = true;
-  setStatus(reason === "auto" ? "Mise à jour de l’aperçu…" : "Traitement…");
+  preview.hidden = false;
+  setBadge("Préparation…", "loading", myGen);
+  setStatus(
+    reason === "auto"
+      ? "Mise à jour de l’aperçu (patientez pendant le chargement)…"
+      : "Traitement en cours…",
+  );
 
   try {
     const result = await runPipeline(file, {
@@ -178,16 +240,21 @@ async function runLive(reason: "auto" | "manual" = "auto") {
       onProgress: (msg) => {
         if (myGen === runGeneration) setStatus(msg);
       },
+      onStepStart: (step) => {
+        if (myGen !== runGeneration) return;
+        setBadge(STEP_LOADING[step], "loading", myGen);
+        setStatus(STEP_LOADING[step]);
+      },
       onStep: async (step, canvas) => {
         if (myGen !== runGeneration) return;
-        await showCanvasPreview(canvas, step);
+        await showCanvasPreview(canvas, step, myGen);
       },
     });
 
     if (myGen !== runGeneration) return;
 
     if (result.kind === "svg") {
-      showSvgPreview(result.svg);
+      showSvgPreview(result.svg, myGen);
     } else {
       const filename =
         result.blob.type === "image/webp" ? "embelify.webp" : "embelify.png";
@@ -198,25 +265,27 @@ async function runLive(reason: "auto" | "manual" = "auto") {
       });
       previewSvg.hidden = true;
       previewSvg.innerHTML = "";
-      previewImg.src = previewUrl;
-      previewImg.hidden = false;
       preview.hidden = false;
+      await waitForImgPaint(previewUrl);
+      if (myGen !== runGeneration) return;
+      paintedGeneration = myGen;
       downloadBtn.disabled = false;
-      stepBadge.hidden = false;
-      stepBadge.textContent = STEP_LABELS.done;
+      setBadge(STEP_READY.done, "ready", myGen);
       previewLabel.textContent = opts.removeBg
         ? "PNG transparent — prêt à télécharger"
         : "Résultat — prêt à télécharger";
     }
 
+    downloadBtn.disabled = false;
     setStatus("Aperçu à jour — téléchargez pour garder le fichier.");
   } catch (err) {
     if (myGen !== runGeneration) return;
     if (err instanceof DOMException && err.name === "AbortError") {
-      setStatus("Mise à jour…");
+      setStatus("Nouvelle mise à jour en cours…");
     } else {
       const message = err instanceof Error ? err.message : "Échec du traitement.";
       setStatus(message, true);
+      setBadge("Erreur", "ready", myGen);
     }
   } finally {
     if (myGen === runGeneration) submitBtn.disabled = false;
@@ -226,10 +295,20 @@ async function runLive(reason: "auto" | "manual" = "auto") {
 function scheduleLiveRun() {
   if (!getSourceFile() && !fileInput.files?.[0]) return;
   if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+  // Show immediate feedback that a change was queued
+  if (runGeneration > 0 || getSourceFile() || fileInput.files?.[0]) {
+    preview.hidden = false;
+    stepBadge.hidden = false;
+    stepBadge.textContent = "Changement détecté…";
+    stepBadge.classList.add("is-loading");
+    stepBadge.classList.remove("is-ready");
+    previewLabel.textContent = "En attente…";
+    setStatus("Option modifiée — recalcul dans un instant…");
+  }
   debounceTimer = window.setTimeout(() => {
     debounceTimer = null;
     void runLive("auto");
-  }, 280);
+  }, 220);
 }
 
 ["dragenter", "dragover"].forEach((evt) => {
@@ -278,6 +357,7 @@ downloadBtn.addEventListener("click", () => {
 
 clearBtn.addEventListener("click", async () => {
   runGeneration += 1;
+  paintedGeneration = 0;
   if (debounceTimer !== null) window.clearTimeout(debounceTimer);
   wipeSession();
   clearUiAssets();
@@ -292,6 +372,7 @@ form.addEventListener("submit", (e) => {
 
 installSessionGuards(() => {
   runGeneration += 1;
+  paintedGeneration = 0;
   clearUiAssets();
   void disposePipelineResources();
 });

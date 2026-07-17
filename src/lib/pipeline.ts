@@ -14,6 +14,8 @@ export type PipelineOptions = {
   toSvg: boolean;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
+  /** Fired when a step begins (for loading labels). */
+  onStepStart?: (step: PipelineStep) => void;
   /** Live preview after each completed step (canvas is ephemeral — copy/blob it). */
   onStep?: (step: PipelineStep, canvas: HTMLCanvasElement) => void | Promise<void>;
 };
@@ -379,6 +381,10 @@ export async function disposePipelineResources(): Promise<void> {
   }
 }
 
+function emitStepStart(opts: PipelineOptions, step: PipelineStep) {
+  opts.onStepStart?.(step);
+}
+
 async function emitStep(
   opts: PipelineOptions,
   step: PipelineStep,
@@ -397,24 +403,28 @@ export async function runPipeline(
     throw new Error("Activez au moins une étape du pipeline.");
   }
 
+  emitStepStart(opts, "source");
   let canvas = await normalizeInput(file, opts);
   throwIfAborted(opts.signal);
   await emitStep(opts, "source", canvas);
 
   try {
     if (opts.upscale === 2 || opts.upscale === 4) {
+      emitStepStart(opts, "upscale");
       canvas = await upscaleCanvas(canvas, opts.upscale, opts);
       throwIfAborted(opts.signal);
       await emitStep(opts, "upscale", canvas);
     }
 
     if (opts.removeBg) {
+      emitStepStart(opts, "background");
       canvas = await removeBackgroundFromCanvas(canvas, opts);
       throwIfAborted(opts.signal);
       await emitStep(opts, "background", canvas);
     }
 
     if (opts.toSvg) {
+      emitStepStart(opts, "svg");
       const svg = await canvasToSvg(canvas, opts);
       const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
       wipeCanvas(canvas);
@@ -422,6 +432,7 @@ export async function runPipeline(
       return { kind: "svg", blob, svg };
     }
 
+    emitStepStart(opts, "done");
     progress(opts, "Export PNG…");
     await emitStep(opts, "done", canvas);
     const hasAlpha = opts.removeBg;

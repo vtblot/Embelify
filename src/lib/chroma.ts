@@ -139,6 +139,111 @@ function decontaminateEdges(
 }
 
 /**
+ * Contract the opaque matte by `radius` pixels (morphological erosion).
+ * Equivalent to “cropping” fringe pixels around every shape — kills black AA crumbs.
+ */
+function erodeAlpha(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  radius: number,
+): void {
+  if (radius <= 0) return;
+  let current = new Uint8Array(w * h);
+  for (let i = 0; i < current.length; i++) {
+    current[i] = data[i * 4 + 3] > 16 ? 1 : 0;
+  }
+
+  for (let pass = 0; pass < radius; pass++) {
+    const next = new Uint8Array(current);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (!current[idx]) continue;
+        let keep = true;
+        for (let dy = -1; dy <= 1 && keep; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h || !current[ny * w + nx]) {
+              keep = false;
+              break;
+            }
+          }
+        }
+        if (!keep) next[idx] = 0;
+      }
+    }
+    current = next;
+  }
+
+  for (let i = 0; i < current.length; i++) {
+    if (!current[i]) data[i * 4 + 3] = 0;
+  }
+}
+
+/**
+ * After erosion, repaint the new edge with interior colors so contours stay uniform.
+ */
+function recolorEdgesFromInterior(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+): void {
+  const src = new Uint8ClampedArray(data);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (src[i + 3] < 16) continue;
+      if (!touchesTransparent(src, w, h, x, y, 1)) continue;
+
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let n = 0;
+      // Prefer neighbors that are fully inside (not on the transparent border)
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const ni = (ny * w + nx) * 4;
+          if (src[ni + 3] < 200) continue;
+          if (touchesTransparent(src, w, h, nx, ny, 1)) continue;
+          r += src[ni];
+          g += src[ni + 1];
+          b += src[ni + 2];
+          n += 1;
+        }
+      }
+      if (n === 0) {
+        // Fallback: any opaque neighbor
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const ni = (ny * w + nx) * 4;
+            if (src[ni + 3] < 200) continue;
+            r += src[ni];
+            g += src[ni + 1];
+            b += src[ni + 2];
+            n += 1;
+          }
+        }
+      }
+      if (n > 0) {
+        data[i] = Math.round(r / n);
+        data[i + 1] = Math.round(g / n);
+        data[i + 2] = Math.round(b / n);
+        data[i + 3] = 255;
+      }
+    }
+  }
+}
+
+/**
  * Remove thin dark outlines left on shapes (AA against a dark bg / upscale halo).
  * Only touches near-black pixels whose neighbors are mostly bright or transparent.
  */
@@ -277,8 +382,12 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
 
   decontaminateEdges(data, w, h, bg);
   cleanDarkHalos(data, w, h);
-  // Second defringe pass after halo cleanup
   decontaminateEdges(data, w, h, bg);
+
+  // Crop ~1–2 fringe pixels around every shape, then unify edge colors
+  erodeAlpha(data, w, h, 2);
+  recolorEdgesFromInterior(data, w, h);
+  cleanDarkHalos(data, w, h);
 
   const out = document.createElement("canvas");
   out.width = w;
