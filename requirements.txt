@@ -3,7 +3,7 @@ uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 pillow==11.1.0
 numpy==2.2.2
-opencv-python-headless==4.10.0.84
+opencv-contrib-python-headless==4.10.0.84
 rembg==2.0.61
 onnxruntime==1.20.1
 vtracer==0.6.11

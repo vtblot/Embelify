@@ -6,7 +6,7 @@ App web **locale** pour embellir une image : upscale, fond transparent, conversi
 
 Les étapes sont **indépendantes** (toggles), mais toujours exécutées dans cet ordre pour la meilleure qualité :
 
-1. **Upscale** (×2 / ×4) — FSRCNN, fallback LANCZOS  
+1. **Upscale** (×2 / ×4) — FSRCNN via OpenCV contrib, fallback LANCZOS  
 2. **Fond transparent** — rembg (u2net)  
 3. **SVG** — vtracer (logos / formes simples)
 
