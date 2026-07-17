@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Embelify — Upscale · Détourage · SVG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand" href="/">Embelify</a>
+    <p class="tagline">Upscale · fond transparent · SVG</p>
+  </header>
+
+  <main class="stage">
+    <section class="hero-copy">
+      <h1 class="brand-mark">Embelify</h1>
+      <p class="lede">Améliorez une image, détourez-la au pixel, vectorisez-la — dans le bon ordre, en local.</p>
+    </section>
+
+    <section class="workspace" aria-label="Zone de travail">
+      <form id="pipeline-form" class="pipeline">
+        <label class="dropzone" id="dropzone" for="file-input">
+          <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" required />
+          <span class="dropzone-orbit" aria-hidden="true"></span>
+          <span class="dropzone-title">Déposez une image</span>
+          <span class="dropzone-hint">PNG, JPEG, WebP — max 25&nbsp;Mo</span>
+          <span class="dropzone-file" id="file-name" hidden></span>
+        </label>
+
+        <fieldset class="steps">
+          <legend>Pipeline</legend>
+          <p class="order-note">Ordre fixe pour la qualité : <strong>1. Upscale</strong> → <strong>2. Fond</strong> → <strong>3. SVG</strong></p>
+
+          <div class="step">
+            <div class="step-head">
+              <span class="step-num">1</span>
+              <label class="step-label" for="upscale">Upscale</label>
+              <select id="upscale" name="upscale">
+                <option value="1">Désactivé</option>
+                <option value="2" selected>×2</option>
+                <option value="4">×4</option>
+              </select>
+            </div>
+            <p class="step-desc">Netteté avant le détourage pour des contours plus propres.</p>
+          </div>
+
+          <div class="step">
+            <div class="step-head">
+              <span class="step-num">2</span>
+              <label class="step-label" for="remove_bg">Fond transparent</label>
+              <label class="switch">
+                <input type="checkbox" id="remove_bg" name="remove_bg" checked />
+                <span class="switch-ui" aria-hidden="true"></span>
+              </label>
+            </div>
+            <p class="step-desc">Détourage précis (rembg / u2net) → PNG alpha.</p>
+          </div>
+
+          <div class="step">
+            <div class="step-head">
+              <span class="step-num">3</span>
+              <label class="step-label" for="to_svg">Convertir en SVG</label>
+              <label class="switch">
+                <input type="checkbox" id="to_svg" name="to_svg" />
+                <span class="switch-ui" aria-hidden="true"></span>
+              </label>
+            </div>
+            <p class="step-desc">Idéal logos / formes simples. Moins adapté aux photos.</p>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button type="submit" class="cta" id="submit-btn">Embellir</button>
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+
+      <aside class="preview" id="preview" hidden>
+        <div class="preview-frame">
+          <div class="checker" aria-hidden="true"></div>
+          <img id="preview-img" alt="Résultat" hidden />
+          <div id="preview-svg" class="svg-host" hidden></div>
+        </div>
+        <div class="preview-meta">
+          <p id="preview-label">Résultat</p>
+          <a id="download-link" class="download" download>Télécharger</a>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Traitement 100&nbsp;% local · aucune image n’est envoyée ailleurs</p>
+  </footer>
+
+  <script src="/static/app.js" type="module"></script>
+</body>
+</html>
