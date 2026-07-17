@@ -1,15 +1,20 @@
-/** Solid / flat background removal via edge flood-fill + soft fringe. */
+/** Solid / flat background removal via edge flood-fill + defringe. */
 
 export type Rgb = readonly [number, number, number];
 
-const HARD_DIST = 38; // clearly background
-const SOFT_DIST = 72; // anti-aliased fringe toward bg
+const HARD_DIST = 42; // clearly background
+const SOFT_DIST = 96; // anti-aliased fringe toward bg
+const FRINGE_LUMA = 55; // near-black halo cleanup
 
 function dist2(r: number, g: number, b: number, bg: Rgb): number {
   const dr = r - bg[0];
   const dg = g - bg[1];
   const db = b - bg[2];
   return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+function luma(r: number, g: number, b: number): number {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function sampleCorners(data: Uint8ClampedArray, w: number, h: number): Rgb {
@@ -19,7 +24,6 @@ function sampleCorners(data: Uint8ClampedArray, w: number, h: number): Rgb {
     (h - 1) * w * 4,
     ((h - 1) * w + (w - 1)) * 4,
   ];
-  // Also sample near-corner insets (avoid 1px borders)
   const inset = Math.max(1, Math.min(8, Math.floor(Math.min(w, h) / 40)));
   pts.push(
     (inset * w + inset) * 4,
@@ -50,7 +54,6 @@ export function looksLikeFlatGraphic(canvas: HTMLCanvasElement): boolean {
   const { data } = ctx.getImageData(0, 0, w, h);
   const bg = sampleCorners(data, w, h);
 
-  // Sample edge pixels; most should be near the corner color
   let edge = 0;
   let near = 0;
   const step = Math.max(1, Math.floor(Math.max(w, h) / 80));
@@ -73,9 +76,127 @@ export function looksLikeFlatGraphic(canvas: HTMLCanvasElement): boolean {
   return near / edge >= 0.82;
 }
 
+function touchesTransparent(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  radius = 1,
+): boolean {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) return true;
+      if (data[(ny * w + nx) * 4 + 3] < 16) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Remove bg color spill from semi-transparent / edge pixels (kills black halos).
+ */
+function decontaminateEdges(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  bg: Rgb,
+): void {
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const a = data[i + 3];
+      if (a === 0) continue;
+      if (!touchesTransparent(data, w, h, x, y, 2)) continue;
+
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const d = dist2(r, g, b, bg);
+
+      // Partial alpha from soft fringe — un-premultiply bg contamination
+      if (a < 250 || d < SOFT_DIST) {
+        const alpha = a / 255;
+        // Estimate how much bg is mixed in from color distance
+        const mix = Math.max(0, 1 - d / SOFT_DIST);
+        const strength = Math.min(1, mix * 0.95 + (1 - alpha) * 0.5);
+        if (strength > 0.02) {
+          data[i] = Math.round(Math.min(255, Math.max(0, (r - bg[0] * strength) / (1 - strength * 0.92))));
+          data[i + 1] = Math.round(Math.min(255, Math.max(0, (g - bg[1] * strength) / (1 - strength * 0.92))));
+          data[i + 2] = Math.round(Math.min(255, Math.max(0, (b - bg[2] * strength) / (1 - strength * 0.92))));
+        }
+      }
+
+      // Near-black edge crumbs → drop
+      if (luma(data[i], data[i + 1], data[i + 2]) < FRINGE_LUMA && d < SOFT_DIST + 20) {
+        data[i + 3] = 0;
+      }
+    }
+  }
+}
+
+/**
+ * Remove thin dark outlines left on shapes (AA against a dark bg / upscale halo).
+ * Only touches near-black pixels whose neighbors are mostly bright or transparent.
+ */
+function cleanDarkHalos(data: Uint8ClampedArray, w: number, h: number): void {
+  const snapshot = new Uint8ClampedArray(data);
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      if (snapshot[i + 3] < 16) continue;
+
+      const L = luma(snapshot[i], snapshot[i + 1], snapshot[i + 2]);
+      if (L > FRINGE_LUMA) continue;
+
+      let brightR = 0;
+      let brightG = 0;
+      let brightB = 0;
+      let brightN = 0;
+      let transparentN = 0;
+      let darkN = 0;
+
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const ni = ((y + dy) * w + (x + dx)) * 4;
+          if (snapshot[ni + 3] < 16) {
+            transparentN += 1;
+            continue;
+          }
+          const nL = luma(snapshot[ni], snapshot[ni + 1], snapshot[ni + 2]);
+          if (nL < FRINGE_LUMA + 10) {
+            darkN += 1;
+          } else {
+            brightR += snapshot[ni];
+            brightG += snapshot[ni + 1];
+            brightB += snapshot[ni + 2];
+            brightN += 1;
+          }
+        }
+      }
+
+      // Thin dark fringe: few dark neighbors, surrounded by bright/transparent
+      if (darkN <= 3 && (brightN >= 2 || transparentN >= 2)) {
+        if (transparentN >= 3 && brightN === 0) {
+          data[i + 3] = 0;
+        } else if (brightN > 0) {
+          data[i] = Math.round(brightR / brightN);
+          data[i + 1] = Math.round(brightG / brightN);
+          data[i + 2] = Math.round(brightB / brightN);
+        }
+      }
+    }
+  }
+}
+
 /**
  * Remove the solid background connected to the image edges.
- * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo AI.
+ * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo cutout.
  */
 export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -101,7 +222,6 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
     queue[qt++] = idx;
   };
 
-  // Seed flood-fill from every edge pixel matching the background
   for (let x = 0; x < w; x++) {
     enqueue(x, 0);
     enqueue(x, h - 1);
@@ -121,14 +241,12 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
     if (y + 1 < h) enqueue(x, y + 1);
   }
 
-  // Punch fully transparent background
   for (let idx = 0; idx < visited.length; idx++) {
     if (!visited[idx]) continue;
-    const i = idx * 4;
-    data[i + 3] = 0;
+    data[idx * 4 + 3] = 0;
   }
 
-  // Soften anti-aliased fringe: near-bg pixels adjacent to cleared bg
+  // Soft fringe on pixels touching removed bg
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
@@ -137,10 +255,9 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
       const d = dist2(data[i], data[i + 1], data[i + 2], bg);
       if (d >= SOFT_DIST) continue;
 
-      // Only feather if touching a removed background pixel
       let touchesBg = false;
-      for (let dy = -1; dy <= 1 && !touchesBg; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -2; dy <= 2 && !touchesBg; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
           const nx = x + dx;
           const ny = y + dy;
           if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
@@ -152,12 +269,16 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
       }
       if (!touchesBg) continue;
 
-      // Map distance HARD→SOFT to alpha 0→original
       const t = (d - HARD_DIST) / (SOFT_DIST - HARD_DIST);
       const factor = Math.max(0, Math.min(1, t));
-      data[i + 3] = Math.round(data[i + 3] * factor);
+      data[i + 3] = Math.round(data[i + 3] * factor * factor);
     }
   }
+
+  decontaminateEdges(data, w, h, bg);
+  cleanDarkHalos(data, w, h);
+  // Second defringe pass after halo cleanup
+  decontaminateEdges(data, w, h, bg);
 
   const out = document.createElement("canvas");
   out.width = w;

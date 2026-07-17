@@ -13,13 +13,13 @@
 
   <header class="top">
     <a class="brand" href="/">Embelify</a>
-    <p class="tagline">Local · téléchargement · session éphémère</p>
+    <p class="tagline">Local · aperçu live · téléchargement</p>
   </header>
 
   <main class="stage">
     <section class="hero-copy">
       <h1 class="brand-mark">Embelify</h1>
-      <p class="lede">Traitement rapide dans votre navigateur. Vous téléchargez le résultat — fermer l’onglet vide tout.</p>
+      <p class="lede">Ajustez les options : l’aperçu se met à jour à chaque étape. Téléchargez le résultat — rien n’est stocké.</p>
     </section>
 
     <section class="workspace" aria-label="Zone de travail">
@@ -33,20 +33,20 @@
         </label>
 
         <fieldset class="steps">
-          <legend>Pipeline</legend>
-          <p class="order-note">Ordre fixe pour la qualité : <strong>1. Upscale</strong> → <strong>2. Fond</strong> → <strong>3. SVG</strong></p>
+          <legend>Options</legend>
+          <p class="order-note">Chaque changement recalcule l’aperçu · ordre : upscale → fond → SVG</p>
 
           <div class="step">
             <div class="step-head">
               <span class="step-num">1</span>
-              <label class="step-label" for="upscale">Upscale</label>
+              <label class="step-label" for="upscale">Upscale <span class="optional">(optionnel)</span></label>
               <select id="upscale" name="upscale">
-                <option value="1">Désactivé</option>
-                <option value="2" selected>×2</option>
+                <option value="1" selected>Non</option>
+                <option value="2">×2</option>
                 <option value="4">×4</option>
               </select>
             </div>
-            <p class="step-desc">Netteté avant le détourage pour des contours plus propres.</p>
+            <p class="step-desc">Agrandit et nettoie une image floue ou petite. Laissez « Non » si elle est déjà nette.</p>
           </div>
 
           <div class="step">
@@ -58,56 +58,58 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc">Enlève le fond (noir uni, etc.) → PNG alpha.</p>
+            <p class="step-desc">Rend le fond invisible (ex. noir autour d’un logo).</p>
             <div class="step-extra" id="bg-mode-wrap">
-              <label class="sub-label" for="bg_mode">Méthode</label>
+              <label class="sub-label" for="bg_mode">Comment ?</label>
               <select id="bg_mode" name="bg_mode">
-                <option value="auto" selected>Auto — aplats ou photo</option>
-                <option value="chroma">Fond uni (logos, grilles, noir…)</option>
-                <option value="ai">IA photo (sujet / arrière-plan)</option>
+                <option value="chroma" selected>Couleur unie — logos, fond noir, grilles…</option>
+                <option value="auto">Auto — détecte logo ou photo</option>
+                <option value="ai">Photo — découpe une personne / un objet</option>
               </select>
             </div>
+            <p class="step-hint" id="bg-hint">Idéal pour votre cas : aplats et fond d’une seule couleur.</p>
           </div>
 
           <div class="step">
             <div class="step-head">
               <span class="step-num">3</span>
-              <label class="step-label" for="to_svg">Convertir en SVG</label>
+              <label class="step-label" for="to_svg">Convertir en SVG <span class="optional">(optionnel)</span></label>
               <label class="switch">
                 <input type="checkbox" id="to_svg" name="to_svg" />
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc">Idéal logos / formes simples. Moins adapté aux photos.</p>
+            <p class="step-desc">Vectorise logos / formes simples. Pas adapté aux photos.</p>
           </div>
         </fieldset>
 
         <div class="actions">
-          <button type="submit" class="cta" id="submit-btn">Embellir</button>
-          <p class="status" id="status" role="status" aria-live="polite"></p>
+          <button type="submit" class="cta" id="submit-btn">Recalculer</button>
+          <p class="status" id="status" role="status" aria-live="polite">Déposez une image pour voir l’aperçu en direct.</p>
         </div>
       </form>
 
       <aside class="preview" id="preview" hidden>
+        <p class="step-badge" id="step-badge" hidden></p>
         <div class="preview-frame">
           <div class="checker" aria-hidden="true"></div>
           <img id="preview-img" alt="Résultat" hidden />
           <div id="preview-svg" class="svg-host" hidden></div>
         </div>
         <div class="preview-meta">
-          <p id="preview-label">Résultat</p>
+          <p id="preview-label">Aperçu</p>
           <div class="preview-actions">
             <button type="button" class="download" id="download-btn" disabled>Télécharger</button>
             <button type="button" class="ghost" id="clear-btn">Vider la session</button>
           </div>
         </div>
-        <p class="ephemeral-note">Livraison = téléchargement uniquement. Onglet fermé → assets effacés.</p>
+        <p class="ephemeral-note">Livraison = téléchargement. Onglet fermé → tout est effacé.</p>
       </aside>
     </section>
   </main>
 
   <footer class="foot">
-    <p>Aucun stockage utilisateur · modèles IA mis en cache par le navigateur uniquement</p>
+    <p>Aucun stockage utilisateur · traitement 100&nbsp;% dans votre navigateur</p>
   </footer>
 
   <script type="module" src="/src/main.ts"></script>

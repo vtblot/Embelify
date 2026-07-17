@@ -5,6 +5,8 @@ export type UpscaleFactor = 1 | 2 | 4;
 /** auto: fond uni pour logos/aplats, IA pour photos */
 export type BgMode = "auto" | "chroma" | "ai";
 
+export type PipelineStep = "source" | "upscale" | "background" | "svg" | "done";
+
 export type PipelineOptions = {
   upscale: UpscaleFactor;
   removeBg: boolean;
@@ -12,6 +14,8 @@ export type PipelineOptions = {
   toSvg: boolean;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
+  /** Live preview after each completed step (canvas is ephemeral — copy/blob it). */
+  onStep?: (step: PipelineStep, canvas: HTMLCanvasElement) => void | Promise<void>;
 };
 
 export type PipelineResult =
@@ -375,6 +379,15 @@ export async function disposePipelineResources(): Promise<void> {
   }
 }
 
+async function emitStep(
+  opts: PipelineOptions,
+  step: PipelineStep,
+  canvas: HTMLCanvasElement,
+) {
+  if (!opts.onStep) return;
+  await opts.onStep(step, canvas);
+}
+
 /** In-memory pipeline. Nothing is uploaded or persisted. */
 export async function runPipeline(
   file: File,
@@ -386,14 +399,19 @@ export async function runPipeline(
 
   let canvas = await normalizeInput(file, opts);
   throwIfAborted(opts.signal);
+  await emitStep(opts, "source", canvas);
 
   try {
     if (opts.upscale === 2 || opts.upscale === 4) {
       canvas = await upscaleCanvas(canvas, opts.upscale, opts);
+      throwIfAborted(opts.signal);
+      await emitStep(opts, "upscale", canvas);
     }
 
     if (opts.removeBg) {
       canvas = await removeBackgroundFromCanvas(canvas, opts);
+      throwIfAborted(opts.signal);
+      await emitStep(opts, "background", canvas);
     }
 
     if (opts.toSvg) {
@@ -405,7 +423,7 @@ export async function runPipeline(
     }
 
     progress(opts, "Export PNG…");
-    // PNG when alpha may exist; otherwise WebP is smaller/faster to encode
+    await emitStep(opts, "done", canvas);
     const hasAlpha = opts.removeBg;
     const blob = hasAlpha
       ? await canvasToBlob(canvas, "image/png")

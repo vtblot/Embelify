@@ -14,15 +14,21 @@ await page.selectOption("#upscale", "1");
 await page.evaluate(() => {
   const rembg = document.getElementById("remove_bg");
   const svg = document.getElementById("to_svg");
-  if (rembg instanceof HTMLInputElement) rembg.checked = false;
-  if (svg instanceof HTMLInputElement) svg.checked = true;
+  if (rembg instanceof HTMLInputElement) {
+    rembg.checked = false;
+    rembg.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (svg instanceof HTMLInputElement) {
+    svg.checked = true;
+    svg.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 });
 await page.setInputFiles("#file-input", "/tmp/test-embelify.png");
-await page.click("#submit-btn");
 
 await page.waitForFunction(() => {
   const s = document.getElementById("status")?.textContent || "";
-  return s.includes("Terminé") || Boolean(document.querySelector(".status.is-error"));
+  const svg = document.querySelector("#preview-svg svg");
+  return Boolean(svg) || s.includes("Échec") || Boolean(document.querySelector(".status.is-error"));
 }, { timeout: 120000 });
 
 const status = await page.textContent("#status");
@@ -31,7 +37,7 @@ const previewHidden = await page.isHidden("#preview");
 const svgCount = await page.locator("#preview-svg svg").count();
 console.log("previewHidden", previewHidden, "svgCount", svgCount);
 
-if (previewHidden || svgCount < 1 || !status?.includes("Terminé")) {
+if (previewHidden || svgCount < 1) {
   throw new Error("SVG preview failed: " + status);
 }
 console.log("SMOKE_OK");

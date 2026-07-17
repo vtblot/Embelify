@@ -11,15 +11,28 @@ await page.selectOption("#upscale", "1");
 await page.evaluate(() => {
   const rembg = document.getElementById("remove_bg");
   const svg = document.getElementById("to_svg");
-  if (rembg instanceof HTMLInputElement) rembg.checked = true;
-  if (svg instanceof HTMLInputElement) svg.checked = false;
+  const mode = document.getElementById("bg_mode");
+  if (rembg instanceof HTMLInputElement) {
+    rembg.checked = true;
+    rembg.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (svg instanceof HTMLInputElement) {
+    svg.checked = false;
+    svg.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (mode instanceof HTMLSelectElement) {
+    mode.value = "ai";
+    mode.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 });
 await page.setInputFiles("#file-input", "/tmp/test-embelify.png");
-await page.click("#submit-btn");
 
 await page.waitForFunction(() => {
+  const img = document.getElementById("preview-img");
   const s = document.getElementById("status")?.textContent || "";
-  return s.includes("Terminé") || Boolean(document.querySelector(".status.is-error"));
+  return (img instanceof HTMLImageElement && !img.hidden && Boolean(img.src))
+    || s.includes("Échec")
+    || Boolean(document.querySelector(".status.is-error"));
 }, { timeout: 300000 });
 
 const status = await page.textContent("#status");
@@ -28,7 +41,7 @@ const previewHidden = await page.isHidden("#preview");
 const imgVisible = await page.isVisible("#preview-img");
 console.log("previewHidden", previewHidden, "imgVisible", imgVisible);
 
-if (previewHidden || !imgVisible || !status?.includes("Terminé")) {
+if (previewHidden || !imgVisible) {
   throw new Error("Rembg failed: " + status);
 }
 console.log("REMBG_OK");

@@ -268,11 +268,38 @@ body {
   color: var(--paper);
 }
 
-.step-desc {
+.step-desc,
+.step-hint {
   margin: 0.45rem 0 0 2.3rem;
   font-size: 0.88rem;
   color: var(--mist);
   opacity: 0.8;
+}
+
+.step-hint {
+  margin-top: 0.35rem;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.optional {
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--mist);
+  opacity: 0.75;
+}
+
+.step-badge {
+  margin: 0;
+  align-self: flex-start;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--accent);
+  padding: 0.3rem 0.55rem;
 }
 
 .step-extra {
