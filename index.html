@@ -13,13 +13,13 @@
 
   <header class="top">
     <a class="brand" href="/">Embelify</a>
-    <p class="tagline">100&nbsp;% navigateur · rien n’est stocké</p>
+    <p class="tagline">Local · téléchargement · session éphémère</p>
   </header>
 
   <main class="stage">
     <section class="hero-copy">
       <h1 class="brand-mark">Embelify</h1>
-      <p class="lede">Améliorez, détourez, vectorisez — tout se passe dans votre navigateur. Aucun envoi serveur.</p>
+      <p class="lede">Traitement rapide dans votre navigateur. Vous téléchargez le résultat — fermer l’onglet vide tout.</p>
     </section>
 
     <section class="workspace" aria-label="Zone de travail">
@@ -28,7 +28,7 @@
           <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" required />
           <span class="dropzone-orbit" aria-hidden="true"></span>
           <span class="dropzone-title">Déposez une image</span>
-          <span class="dropzone-hint">PNG, JPEG, WebP — reste sur cet appareil</span>
+          <span class="dropzone-hint">PNG, JPEG, WebP — jamais envoyé ni sauvegardé</span>
           <span class="dropzone-file" id="file-name" hidden></span>
         </label>
 
@@ -88,14 +88,18 @@
         </div>
         <div class="preview-meta">
           <p id="preview-label">Résultat</p>
-          <a id="download-link" class="download" download>Télécharger</a>
+          <div class="preview-actions">
+            <button type="button" class="download" id="download-btn" disabled>Télécharger</button>
+            <button type="button" class="ghost" id="clear-btn">Vider la session</button>
+          </div>
         </div>
+        <p class="ephemeral-note">Livraison = téléchargement uniquement. Onglet fermé → assets effacés.</p>
       </aside>
     </section>
   </main>
 
   <footer class="foot">
-    <p>Traitement éphémère dans le navigateur · fermez l’onglet, l’image disparaît</p>
+    <p>Aucun stockage utilisateur · modèles IA mis en cache par le navigateur uniquement</p>
   </footer>
 
   <script type="module" src="/src/main.ts"></script>

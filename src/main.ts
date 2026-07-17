@@ -1,5 +1,19 @@
 import "./styles.css";
-import { runPipeline, type UpscaleFactor } from "./lib/pipeline";
+import {
+  disposePipelineResources,
+  preloadModels,
+  runPipeline,
+  type UpscaleFactor,
+} from "./lib/pipeline";
+import {
+  beginWork,
+  downloadResult,
+  getSourceFile,
+  installSessionGuards,
+  setResult,
+  setSourceFile,
+  wipeSession,
+} from "./lib/session";
 
 const form = document.getElementById("pipeline-form") as HTMLFormElement;
 const dropzone = document.getElementById("dropzone") as HTMLLabelElement;
@@ -11,22 +25,12 @@ const preview = document.getElementById("preview") as HTMLElement;
 const previewImg = document.getElementById("preview-img") as HTMLImageElement;
 const previewSvg = document.getElementById("preview-svg") as HTMLDivElement;
 const previewLabel = document.getElementById("preview-label") as HTMLParagraphElement;
-const downloadLink = document.getElementById("download-link") as HTMLAnchorElement;
-
-let objectUrl: string | null = null;
-/** Ephemeral source file — never uploaded, cleared when replaced. */
-let sourceFile: File | null = null;
+const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
+const clearBtn = document.getElementById("clear-btn") as HTMLButtonElement;
 
 function setStatus(message: string, isError = false) {
   statusEl.textContent = message;
   statusEl.classList.toggle("is-error", isError);
-}
-
-function revokePreview() {
-  if (objectUrl) {
-    URL.revokeObjectURL(objectUrl);
-    objectUrl = null;
-  }
 }
 
 function showFileName(file: File | null) {
@@ -39,8 +43,23 @@ function showFileName(file: File | null) {
   fileName.textContent = file.name;
 }
 
-function setSourceFile(file: File | null) {
-  sourceFile = file;
+function resetPreviewUi() {
+  preview.hidden = true;
+  previewImg.hidden = true;
+  previewImg.removeAttribute("src");
+  previewSvg.hidden = true;
+  previewSvg.innerHTML = "";
+  downloadBtn.disabled = true;
+}
+
+function clearUiAssets() {
+  resetPreviewUi();
+  fileInput.value = "";
+  showFileName(null);
+}
+
+function assignSource(file: File | null) {
+  setSourceFile(file);
   showFileName(file);
 }
 
@@ -64,21 +83,40 @@ dropzone.addEventListener("drop", (e) => {
   const dt = new DataTransfer();
   dt.items.add(file);
   fileInput.files = dt.files;
-  setSourceFile(file);
+  assignSource(file);
+  // Warm models as soon as the user engages
+  preloadModels();
 });
 
 fileInput.addEventListener("change", () => {
-  setSourceFile(fileInput.files?.[0] ?? null);
+  assignSource(fileInput.files?.[0] ?? null);
+  if (fileInput.files?.[0]) preloadModels();
+});
+
+downloadBtn.addEventListener("click", () => {
+  if (!downloadResult()) {
+    setStatus("Aucun résultat à télécharger.", true);
+    return;
+  }
+  setStatus("Résultat téléchargé. Fermer l’onglet efface tout.");
+});
+
+clearBtn.addEventListener("click", async () => {
+  wipeSession();
+  clearUiAssets();
+  await disposePipelineResources();
+  setStatus("Session vidée.");
 });
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const file = sourceFile ?? fileInput.files?.[0] ?? null;
+  const file = getSourceFile() ?? fileInput.files?.[0] ?? null;
   if (!file) {
     setStatus("Choisissez une image.", true);
     return;
   }
+  assignSource(file);
 
   const upscale = Number(
     (document.getElementById("upscale") as HTMLSelectElement).value,
@@ -91,9 +129,10 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
+  const signal = beginWork();
   submitBtn.disabled = true;
-  preview.hidden = true;
-  revokePreview();
+  downloadBtn.disabled = true;
+  resetPreviewUi();
   setStatus("Préparation…");
 
   try {
@@ -101,39 +140,71 @@ form.addEventListener("submit", async (e) => {
       upscale,
       removeBg,
       toSvg,
+      signal,
       onProgress: (msg) => setStatus(msg),
     });
 
-    objectUrl = URL.createObjectURL(result.blob);
-    previewImg.hidden = true;
-    previewSvg.hidden = true;
-    previewSvg.innerHTML = "";
+    const filename =
+      result.kind === "svg"
+        ? "embelify.svg"
+        : result.blob.type === "image/webp"
+          ? "embelify.webp"
+          : "embelify.png";
+
+    const { previewUrl } = setResult({
+      kind: result.kind,
+      blob: result.blob,
+      svg: result.kind === "svg" ? result.svg : undefined,
+      filename,
+    });
 
     if (result.kind === "svg") {
       previewSvg.innerHTML = result.svg;
       previewSvg.hidden = false;
-      previewLabel.textContent = "SVG vectorisé";
-      downloadLink.download = "embelify.svg";
+      previewLabel.textContent = "SVG prêt — téléchargez-le maintenant";
     } else {
-      previewImg.src = objectUrl;
+      previewImg.src = previewUrl;
       previewImg.hidden = false;
-      previewLabel.textContent = removeBg ? "PNG transparent" : "PNG embelli";
-      downloadLink.download = "embelify.png";
+      previewLabel.textContent = removeBg
+        ? "PNG transparent — téléchargez-le maintenant"
+        : "Résultat prêt — téléchargez-le maintenant";
     }
 
-    downloadLink.href = objectUrl;
     preview.hidden = false;
-    setStatus("Terminé — rien n’a quitté votre navigateur.");
+    downloadBtn.disabled = false;
+
+    // Delivery = download only (no cloud storage)
+    downloadResult();
+    setStatus("Terminé — résultat téléchargé. Rien n’est stocké côté serveur.");
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Échec du traitement.";
-    setStatus(message, true);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      setStatus("Traitement annulé.");
+    } else {
+      const message = err instanceof Error ? err.message : "Échec du traitement.";
+      setStatus(message, true);
+    }
   } finally {
     submitBtn.disabled = false;
   }
 });
 
-// Drop in-memory references on unload (extra hygiene; GC does the rest)
-window.addEventListener("pagehide", () => {
-  revokePreview();
-  sourceFile = null;
+installSessionGuards(() => {
+  clearUiAssets();
+  void disposePipelineResources();
 });
+
+// Idle preload after first paint — faster first "Embellir"
+const ric = (
+  window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      opts?: { timeout: number },
+    ) => number;
+  }
+).requestIdleCallback;
+
+if (typeof ric === "function") {
+  ric(() => preloadModels(), { timeout: 2500 });
+} else {
+  setTimeout(() => preloadModels(), 1200);
+}

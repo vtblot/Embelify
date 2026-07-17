@@ -25,3 +25,4 @@ declare module "@upscalerjs/esrgan-slim/4x" {
   const model: unknown;
   export default model;
 }
+

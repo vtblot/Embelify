@@ -1,9 +1,12 @@
+import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
+
 export type UpscaleFactor = 1 | 2 | 4;
 
 export type PipelineOptions = {
   upscale: UpscaleFactor;
   removeBg: boolean;
   toSvg: boolean;
+  signal?: AbortSignal;
   onProgress?: (message: string) => void;
 };
 
@@ -11,53 +14,136 @@ export type PipelineResult =
   | { kind: "png"; blob: Blob }
   | { kind: "svg"; blob: Blob; svg: string };
 
-const MAX_PIXELS = 16_000_000;
+/** Soft cap — keeps WebGL / WASM memory under control. */
+const MAX_INPUT_EDGE = 2048;
+const MAX_OUTPUT_PIXELS = 12_000_000;
+
+type UpscalerInstance = {
+  upscale: (
+    image: HTMLCanvasElement,
+    options: {
+      output: "tensor";
+      patchSize?: number;
+      padding?: number;
+    },
+  ) => Promise<unknown>;
+  dispose: () => Promise<void>;
+};
+
+const upscalerCache = new Map<2 | 4, Promise<UpscalerInstance>>();
+let rembgReady: Promise<void> | null = null;
+let preferGpu = true;
 
 function progress(opts: PipelineOptions, message: string) {
   opts.onProgress?.(message);
 }
 
-async function loadImageBitmap(file: Blob): Promise<ImageBitmap> {
-  return createImageBitmap(file);
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException("Traitement annulé.", "AbortError");
 }
 
-function loadHtmlImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Échec de chargement de l’image upscalée."));
-    img.src = src;
-  });
+function wipeCanvas(canvas: HTMLCanvasElement | null | undefined) {
+  if (!canvas) return;
+  canvas.width = 0;
+  canvas.height = 0;
 }
 
 function bitmapToCanvas(bitmap: ImageBitmap): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
   ctx.drawImage(bitmap, 0, 0);
   return canvas;
 }
 
-async function canvasToBlob(canvas: HTMLCanvasElement, type = "image/png"): Promise<Blob> {
+async function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type = "image/png",
+  quality?: number,
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) reject(new Error("Échec d’export PNG."));
-      else resolve(blob);
-    }, type);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) reject(new Error("Échec d’export."));
+        else resolve(blob);
+      },
+      type,
+      quality,
+    );
   });
+}
+
+/** Downscale huge inputs before the heavy models run. */
+async function normalizeInput(file: Blob, opts: PipelineOptions): Promise<HTMLCanvasElement> {
+  progress(opts, "Lecture de l’image…");
+  let bitmap = await createImageBitmap(file);
+  const maxEdge = Math.max(bitmap.width, bitmap.height);
+
+  if (maxEdge > MAX_INPUT_EDGE) {
+    const scale = MAX_INPUT_EDGE / maxEdge;
+    progress(
+      opts,
+      `Image large (${bitmap.width}×${bitmap.height}) — pré-réduction pour la perf…`,
+    );
+    const resized = await createImageBitmap(bitmap, {
+      resizeWidth: Math.max(1, Math.round(bitmap.width * scale)),
+      resizeHeight: Math.max(1, Math.round(bitmap.height * scale)),
+      resizeQuality: "high",
+    });
+    bitmap.close();
+    bitmap = resized;
+  }
+
+  const canvas = bitmapToCanvas(bitmap);
+  bitmap.close();
+  return canvas;
 }
 
 function lanczosUpscale(canvas: HTMLCanvasElement, factor: number): HTMLCanvasElement {
   const out = document.createElement("canvas");
   out.width = Math.max(1, Math.round(canvas.width * factor));
   out.height = Math.max(1, Math.round(canvas.height * factor));
-  const ctx = out.getContext("2d");
+  const ctx = out.getContext("2d", { alpha: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(canvas, 0, 0, out.width, out.height);
+  return out;
+}
+
+async function getUpscaler(factor: 2 | 4): Promise<UpscalerInstance> {
+  let pending = upscalerCache.get(factor);
+  if (!pending) {
+    pending = (async () => {
+      const [{ default: Upscaler }, modelMod] = await Promise.all([
+        import("upscaler"),
+        factor === 2
+          ? import("@upscalerjs/esrgan-slim/2x")
+          : import("@upscalerjs/esrgan-slim/4x"),
+      ]);
+      const model = "default" in modelMod ? modelMod.default : modelMod;
+      return new Upscaler({
+        model: model as never,
+      }) as unknown as UpscalerInstance;
+    })();
+    upscalerCache.set(factor, pending);
+  }
+  return pending;
+}
+
+async function tensorToCanvas(tensor: {
+  shape: number[];
+  dispose: () => void;
+}): Promise<HTMLCanvasElement> {
+  const tf = await import("@tensorflow/tfjs");
+  const [height, width] = tensor.shape;
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  await tf.browser.toPixels(tensor as never, out);
+  tensor.dispose();
   return out;
 }
 
@@ -66,92 +152,196 @@ async function upscaleCanvas(
   factor: 2 | 4,
   opts: PipelineOptions,
 ): Promise<HTMLCanvasElement> {
+  throwIfAborted(opts.signal);
   const outPixels = canvas.width * factor * canvas.height * factor;
-  if (outPixels > MAX_PIXELS) {
-    const scale = Math.sqrt(MAX_PIXELS / (canvas.width * canvas.height));
-    progress(opts, `Image trop grande — upscale limité (×${scale.toFixed(2)})…`);
-    return lanczosUpscale(canvas, scale);
+  if (outPixels > MAX_OUTPUT_PIXELS) {
+    const scale = Math.sqrt(MAX_OUTPUT_PIXELS / (canvas.width * canvas.height));
+    progress(opts, `Upscale limité (×${scale.toFixed(2)}) pour rester fluide…`);
+    const out = lanczosUpscale(canvas, scale);
+    wipeCanvas(canvas);
+    return out;
   }
 
-  progress(opts, `Upscale ×${factor} (modèle ESRGAN, premier chargement possible)…`);
-
+  progress(opts, `Upscale ×${factor}…`);
   try {
-    const [{ default: Upscaler }, modelMod] = await Promise.all([
-      import("upscaler"),
-      factor === 2
-        ? import("@upscalerjs/esrgan-slim/2x")
-        : import("@upscalerjs/esrgan-slim/4x"),
-    ]);
-
-    const model = "default" in modelMod ? modelMod.default : modelMod;
-    const upscaler = new Upscaler({ model: model as never });
-    try {
-      const base64 = await upscaler.upscale(canvas, { output: "base64" });
-      await upscaler.dispose();
-      const src = base64.startsWith("data:")
-        ? base64
-        : `data:image/png;base64,${base64}`;
-      const img = await loadHtmlImage(src);
-      const out = document.createElement("canvas");
-      out.width = img.naturalWidth;
-      out.height = img.naturalHeight;
-      const ctx = out.getContext("2d");
-      if (!ctx) throw new Error("Canvas 2D indisponible.");
-      ctx.drawImage(img, 0, 0);
-      return out;
-    } catch (err) {
-      await upscaler.dispose().catch(() => undefined);
-      throw err;
-    }
+    const upscaler = await getUpscaler(factor);
+    throwIfAborted(opts.signal);
+    // patchSize keeps GPU memory bounded on larger images
+    const patchSize = Math.max(canvas.width, canvas.height) > 512 ? 128 : undefined;
+    const tensor = (await upscaler.upscale(canvas, {
+      output: "tensor",
+      ...(patchSize ? { patchSize, padding: 8 } : {}),
+    })) as { shape: number[]; dispose: () => void };
+    wipeCanvas(canvas);
+    return await tensorToCanvas(tensor);
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
     console.warn("UpscalerJS indisponible, fallback canvas:", err);
-    progress(opts, `Upscale ×${factor} (fallback navigateur)…`);
-    return lanczosUpscale(canvas, factor);
+    progress(opts, `Upscale ×${factor} (fallback rapide)…`);
+    const out = lanczosUpscale(canvas, factor);
+    wipeCanvas(canvas);
+    return out;
   }
+}
+
+function rembgConfig(device: "gpu" | "cpu") {
+  return {
+    // isnet_fp16 = "medium" quality / speed balance
+    model: "isnet_fp16" as const,
+    device,
+    // Off-main-thread inference when the runtime allows it
+    proxyToWorker: true,
+    output: { format: "image/png" as const, quality: 0.92 },
+  };
+}
+
+/** Warm models during idle time so the first run is faster. */
+export function preloadModels(): void {
+  if (rembgReady) return;
+  rembgReady = (async () => {
+    try {
+      const { preload } = await import("@imgly/background-removal");
+      const device: "gpu" | "cpu" =
+        preferGpu && "gpu" in navigator ? "gpu" : "cpu";
+      try {
+        await preload(rembgConfig(device));
+      } catch {
+        preferGpu = false;
+        await preload(rembgConfig("cpu"));
+      }
+    } catch (err) {
+      console.warn("Préchargement rembg échoué:", err);
+    }
+  })();
+
+  // Warm ×2 upscaler in parallel (most common)
+  void getUpscaler(2).catch(() => undefined);
 }
 
 async function removeBackgroundFromCanvas(
   canvas: HTMLCanvasElement,
   opts: PipelineOptions,
 ): Promise<HTMLCanvasElement> {
-  progress(opts, "Détourage du fond (modèle local, premier chargement possible)…");
+  throwIfAborted(opts.signal);
+  progress(opts, "Détourage du fond…");
   const { removeBackground } = await import("@imgly/background-removal");
-  const inputBlob = await canvasToBlob(canvas);
-  const cutout = await removeBackground(inputBlob, {
-    output: { format: "image/png", quality: 1 },
-  });
+
+  const run = async (device: "gpu" | "cpu") => {
+    const inputBlob = await canvasToBlob(canvas, "image/png");
+    throwIfAborted(opts.signal);
+    return removeBackground(inputBlob, {
+      ...rembgConfig(device),
+      progress: (key, current, total) => {
+        if (key.startsWith("fetch:") || key.startsWith("compute:")) {
+          progress(opts, `Détourage (${key} ${current}/${total})…`);
+        }
+      },
+    });
+  };
+
+  let cutout: Blob;
+  try {
+    cutout = await run(preferGpu ? "gpu" : "cpu");
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    if (preferGpu) {
+      preferGpu = false;
+      progress(opts, "GPU indisponible — bascule CPU…");
+      cutout = await run("cpu");
+    } else {
+      throw err;
+    }
+  }
+
+  wipeCanvas(canvas);
   const bitmap = await createImageBitmap(cutout);
   const out = bitmapToCanvas(bitmap);
   bitmap.close();
   return out;
 }
 
-async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Promise<string> {
-  progress(opts, "Vectorisation SVG…");
-  const ImageTracer = (await import("imagetracerjs")).default;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Canvas 2D indisponible.");
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
+function rasterToSvgInWorker(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve, reject) => {
-    try {
-      const svg = ImageTracer.imagedataToSVG(imageData, {
-        ltres: 1,
-        qtres: 1,
-        pathomit: 8,
-        colorsampling: 2,
-        numberofcolors: 32,
-        strokewidth: 0,
-        blurradius: 0,
-        blurdelta: 20,
-        scale: 1,
-        viewbox: true,
-      });
-      resolve(svg);
-    } catch (err) {
-      reject(err);
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) {
+      reject(new Error("Canvas 2D indisponible."));
+      return;
     }
+    const { width, height } = canvas;
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const buffer = imageData.data.buffer.slice(0);
+
+    const worker = new Worker(new URL("./svg.worker.ts", import.meta.url), {
+      type: "module",
+    });
+
+    const timer = window.setTimeout(() => {
+      worker.terminate();
+      reject(new Error("Vectorisation trop longue."));
+    }, 60_000);
+
+    worker.onmessage = (event: MessageEvent<SvgWorkerResponse>) => {
+      window.clearTimeout(timer);
+      worker.terminate();
+      if (event.data.ok) resolve(event.data.svg);
+      else reject(new Error(event.data.error));
+    };
+    worker.onerror = (event) => {
+      window.clearTimeout(timer);
+      worker.terminate();
+      reject(event.error ?? new Error("Erreur worker SVG."));
+    };
+
+    const payload: SvgWorkerRequest = { width, height, buffer };
+    worker.postMessage(payload, [buffer]);
   });
+}
+
+async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Promise<string> {
+  throwIfAborted(opts.signal);
+  progress(opts, "Vectorisation SVG (worker)…");
+  try {
+    return await rasterToSvgInWorker(canvas);
+  } catch (err) {
+    console.warn("Worker SVG indisponible, fallback main thread:", err);
+    const ImageTracer = (await import("imagetracerjs")).default;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("Canvas 2D indisponible.");
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return ImageTracer.imagedataToSVG(imageData, {
+      ltres: 1,
+      qtres: 1,
+      pathomit: 8,
+      colorsampling: 2,
+      numberofcolors: 24,
+      strokewidth: 0,
+      viewbox: true,
+    });
+  }
+}
+
+/** Dispose cached upscalers (call when wiping the tab session). */
+export async function disposePipelineResources(): Promise<void> {
+  const entries = [...upscalerCache.entries()];
+  upscalerCache.clear();
+  await Promise.all(
+    entries.map(async ([, promise]) => {
+      try {
+        const u = await promise;
+        await u.dispose();
+      } catch {
+        /* ignore */
+      }
+    }),
+  );
+  try {
+    const tf = await import("@tensorflow/tfjs");
+    tf.engine().startScope();
+    tf.engine().endScope();
+    await tf.disposeVariables();
+  } catch {
+    /* ignore */
+  }
 }
 
 /** In-memory pipeline. Nothing is uploaded or persisted. */
@@ -163,28 +353,39 @@ export async function runPipeline(
     throw new Error("Activez au moins une étape du pipeline.");
   }
 
-  progress(opts, "Lecture de l’image…");
-  let bitmap = await loadImageBitmap(file);
-  let canvas = bitmapToCanvas(bitmap);
-  bitmap.close();
+  let canvas = await normalizeInput(file, opts);
+  throwIfAborted(opts.signal);
 
-  if (opts.upscale === 2 || opts.upscale === 4) {
-    canvas = await upscaleCanvas(canvas, opts.upscale, opts);
-  }
+  try {
+    if (opts.upscale === 2 || opts.upscale === 4) {
+      canvas = await upscaleCanvas(canvas, opts.upscale, opts);
+    }
 
-  if (opts.removeBg) {
-    canvas = await removeBackgroundFromCanvas(canvas, opts);
-  }
+    if (opts.removeBg) {
+      canvas = await removeBackgroundFromCanvas(canvas, opts);
+    }
 
-  if (opts.toSvg) {
-    const svg = await canvasToSvg(canvas, opts);
-    const blob = new Blob([svg], { type: "image/svg+xml" });
+    if (opts.toSvg) {
+      const svg = await canvasToSvg(canvas, opts);
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      wipeCanvas(canvas);
+      progress(opts, "Terminé.");
+      return { kind: "svg", blob, svg };
+    }
+
+    progress(opts, "Export PNG…");
+    // PNG when alpha may exist; otherwise WebP is smaller/faster to encode
+    const hasAlpha = opts.removeBg;
+    const blob = hasAlpha
+      ? await canvasToBlob(canvas, "image/png")
+      : await canvasToBlob(canvas, "image/webp", 0.92).catch(() =>
+          canvasToBlob(canvas, "image/png"),
+        );
+    wipeCanvas(canvas);
     progress(opts, "Terminé.");
-    return { kind: "svg", blob, svg };
+    return { kind: "png", blob };
+  } catch (err) {
+    wipeCanvas(canvas);
+    throw err;
   }
-
-  progress(opts, "Export PNG…");
-  const blob = await canvasToBlob(canvas);
-  progress(opts, "Terminé.");
-  return { kind: "png", blob };
 }

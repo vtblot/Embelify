@@ -436,6 +436,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 #preview-label {
@@ -444,19 +445,54 @@ select {
   color: var(--mist);
 }
 
-.download {
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.download,
+.ghost {
+  appearance: none;
+  border: none;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 0.95rem;
-  color: var(--accent-ink);
-  background: var(--accent);
-  text-decoration: none;
   padding: 0.55rem 0.95rem;
-  transition: transform 0.2s;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
 }
 
-.download:hover {
+.download {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.download:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+.download:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghost {
+  color: var(--mist);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.ghost:hover {
+  color: var(--paper);
+  border-color: rgba(232, 255, 107, 0.35);
+}
+
+.ephemeral-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--mist);
+  opacity: 0.75;
 }
 
 .foot {
