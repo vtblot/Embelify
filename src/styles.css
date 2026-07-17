@@ -10,7 +10,6 @@
   --line: rgba(200, 217, 206, 0.22);
   --font-display: "Syne", sans-serif;
   --font-body: "Figtree", sans-serif;
-  --radius: 2px;
 }
 
 *,
@@ -103,7 +102,7 @@ body {
 
 .lede {
   margin: 0;
-  max-width: 34rem;
+  max-width: 36rem;
   font-size: clamp(1.05rem, 2.2vw, 1.2rem);
   color: var(--mist);
 }

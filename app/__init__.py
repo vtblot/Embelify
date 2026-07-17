@@ -1,1 +1,0 @@
-# Embelify application package

@@ -7,20 +7,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"></div>
 
   <header class="top">
     <a class="brand" href="/">Embelify</a>
-    <p class="tagline">Upscale · fond transparent · SVG</p>
+    <p class="tagline">100&nbsp;% navigateur · rien n’est stocké</p>
   </header>
 
   <main class="stage">
     <section class="hero-copy">
       <h1 class="brand-mark">Embelify</h1>
-      <p class="lede">Améliorez une image, détourez-la au pixel, vectorisez-la — dans le bon ordre, en local.</p>
+      <p class="lede">Améliorez, détourez, vectorisez — tout se passe dans votre navigateur. Aucun envoi serveur.</p>
     </section>
 
     <section class="workspace" aria-label="Zone de travail">
@@ -29,7 +28,7 @@
           <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" required />
           <span class="dropzone-orbit" aria-hidden="true"></span>
           <span class="dropzone-title">Déposez une image</span>
-          <span class="dropzone-hint">PNG, JPEG, WebP — max 25&nbsp;Mo</span>
+          <span class="dropzone-hint">PNG, JPEG, WebP — reste sur cet appareil</span>
           <span class="dropzone-file" id="file-name" hidden></span>
         </label>
 
@@ -59,7 +58,7 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc">Détourage précis (rembg / u2net) → PNG alpha.</p>
+            <p class="step-desc">Détourage IA local (@imgly) → PNG alpha.</p>
           </div>
 
           <div class="step">
@@ -96,9 +95,9 @@
   </main>
 
   <footer class="foot">
-    <p>Traitement 100&nbsp;% local · aucune image n’est envoyée ailleurs</p>
+    <p>Traitement éphémère dans le navigateur · fermez l’onglet, l’image disparaît</p>
   </footer>
 
-  <script src="/static/app.js" type="module"></script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

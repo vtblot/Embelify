@@ -1,10 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+*.local
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-models/*.pb
-.DS_Store
-*.egg-info/
-dist/
-build/
-.mypy_cache/
+models/
