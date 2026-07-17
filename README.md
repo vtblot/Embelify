@@ -10,7 +10,7 @@ App web **100 % navigateur** : upscale, fond transparent, conversion SVG.
 
 1. **Upscale** ×2 / ×4 — UpscalerJS (ESRGAN slim, tenseurs + patchSize), fallback canvas  
 2. **Fond transparent** (optionnel)  
-   - **Couleur unie** : logos / fond noir (flood-fill + nettoyage des franges)  
+   - **Couleur unie** : logos / fond noir (flood-fill, defringe, érosion 2px du masque)  
    - **Photo** : découpe sujet (modèle local)  
    - **Auto** : choisit entre les deux  
 3. **SVG** (optionnel) — ImageTracer dans un **Web Worker**
