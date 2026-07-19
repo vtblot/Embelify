@@ -6,4 +6,5 @@ dist/
 __pycache__/
 *.pyc
 .pytest_cache/
-models/
+# Local Python / tooling models (not public/models/esrgan-slim)
+/models/

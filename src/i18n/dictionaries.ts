@@ -37,6 +37,9 @@ export type Dict = {
   "status.optionChanged": string;
   "status.aborted": string;
   "status.fail": string;
+  "status.fileTooLarge": string;
+  "status.fileBadType": string;
+  "status.fileBadImage": string;
   "preview.alt": string;
   "preview.default": string;
   "preview.processing": string;
@@ -93,7 +96,7 @@ export const en: Dict = {
   "hero.lede":
     "Tweak the options: the preview updates at every step. Download the result — nothing is stored.",
   "dropzone.title": "Drop an image",
-  "dropzone.hint": "PNG, JPEG, WebP — never uploaded or saved",
+  "dropzone.hint": "PNG, JPEG, WebP — max 25 MB — never uploaded or saved",
   "options.legend": "Options",
   "options.order": "Each change refreshes the preview · order: upscale → background → SVG",
   "step1.label": "Upscale",
@@ -125,6 +128,9 @@ export const en: Dict = {
   "status.optionChanged": "Option changed — recomputing shortly…",
   "status.aborted": "New update in progress…",
   "status.fail": "Processing failed.",
+  "status.fileTooLarge": "Image too large (max 25 MB).",
+  "status.fileBadType": "Unsupported file. Use PNG, JPEG, WebP, GIF, or BMP.",
+  "status.fileBadImage": "Could not read this image.",
   "preview.alt": "Result",
   "preview.default": "Preview",
   "preview.processing": "Processing…",
@@ -188,7 +194,7 @@ export const fr: Dict = {
   "hero.lede":
     "Ajustez les options : l’aperçu se met à jour à chaque étape. Téléchargez le résultat — rien n’est stocké.",
   "dropzone.title": "Déposez une image",
-  "dropzone.hint": "PNG, JPEG, WebP — jamais envoyé ni sauvegardé",
+  "dropzone.hint": "PNG, JPEG, WebP — max 25 Mo — jamais envoyé ni sauvegardé",
   "options.legend": "Options",
   "options.order": "Chaque changement recalcule l’aperçu · ordre : upscale → fond → SVG",
   "step1.label": "Upscale",
@@ -224,6 +230,9 @@ export const fr: Dict = {
   "status.optionChanged": "Option modifiée — recalcul dans un instant…",
   "status.aborted": "Nouvelle mise à jour en cours…",
   "status.fail": "Échec du traitement.",
+  "status.fileTooLarge": "Image trop lourde (max 25 Mo).",
+  "status.fileBadType": "Fichier non pris en charge. Utilisez PNG, JPEG, WebP, GIF ou BMP.",
+  "status.fileBadImage": "Impossible de lire cette image.",
   "preview.alt": "Résultat",
   "preview.default": "Aperçu",
   "preview.processing": "Traitement…",

@@ -27,18 +27,31 @@ await page.setInputFiles("#file-input", "/tmp/test-embelify.png");
 
 await page.waitForFunction(() => {
   const s = document.getElementById("status")?.textContent || "";
-  const svg = document.querySelector("#preview-svg svg");
-  return Boolean(svg) || s.includes("Échec") || Boolean(document.querySelector(".status.is-error"));
+  const img = document.getElementById("preview-img");
+  const svgReady =
+    img instanceof HTMLImageElement &&
+    !img.hidden &&
+    typeof img.src === "string" &&
+    img.src.startsWith("blob:");
+  return svgReady || s.includes("Échec") || Boolean(document.querySelector(".status.is-error"));
 }, { timeout: 120000 });
 
 const status = await page.textContent("#status");
 console.log("status", status);
 const previewHidden = await page.isHidden("#preview");
-const svgCount = await page.locator("#preview-svg svg").count();
-console.log("previewHidden", previewHidden, "svgCount", svgCount);
+const imgSrc = await page.getAttribute("#preview-img", "src");
+const imgHidden = await page.isHidden("#preview-img");
+console.log("previewHidden", previewHidden, "imgHidden", imgHidden, "imgSrc", imgSrc);
 
-if (previewHidden || svgCount < 1) {
+if (previewHidden || imgHidden || !imgSrc?.startsWith("blob:")) {
   throw new Error("SVG preview failed: " + status);
 }
+
+// XSS guard: SVG must not be injected as live DOM markup
+const injectedSvg = await page.locator("#preview-svg svg, .svg-host svg, .preview-frame > svg").count();
+if (injectedSvg > 0) {
+  throw new Error("SVG was injected into the DOM (XSS risk)");
+}
+
 console.log("SMOKE_OK");
 await browser.close();
