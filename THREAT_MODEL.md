@@ -13,7 +13,7 @@
 | D1 / X2 | Gate fichier 25 Mo + MIME + magic bytes + decode | **Fait** |
 | T3 | Polices self-host (`@fontsource`) | **Fait** |
 | CSP / headers | `securityHeaders.ts` + `public/_headers` | **Fait** |
-| T2 / X3 | Allowlist CSP `connect-src` → `staticimgly.com` (vendor ~285 Mo reporté) | **Partiel** |
+| T2 / X3 | Upscale TF.js vendored sous `/models/esrgan-slim/` ; rembg CDN allowlist `staticimgly.com` (~285 Mo) | **Partiel** |
 
 ---
 
