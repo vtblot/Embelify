@@ -6,11 +6,14 @@
 export type HeaderMode = "dev" | "prod";
 
 export function buildSecurityHeaders(mode: HeaderMode): Record<string, string> {
+  // blob: required for ONNX Runtime worker/module bootstrap
   const scriptSrc =
     mode === "dev"
-      ? "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'"
-      : "script-src 'self' 'wasm-unsafe-eval'";
+      ? "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:"
+      : "script-src 'self' 'wasm-unsafe-eval' blob:";
 
+  // Upscaler models are bundled from node_modules (same origin).
+  // @imgly rembg still fetches ONNX/WASM from staticimgly.com (~285MB).
   const connectSrc =
     mode === "dev"
       ? "connect-src 'self' https://staticimgly.com blob: ws: wss:"

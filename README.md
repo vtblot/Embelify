@@ -28,6 +28,7 @@ VITE_SPEKTROGRAFY_URL=https://your-spektrografy-domain.com
 - Input gate: max **25 MB**, MIME + magic bytes + `createImageBitmap`
 - Self-hosted fonts (`@fontsource/syne`, `@fontsource/figtree`)
 - CSP + COOP/COEP + nosniff headers via Vite (`src/lib/securityHeaders.ts`) and `public/_headers` for static hosts
+- Upscale weights served same-origin from `public/models/esrgan-slim/`
 - AI cutout models still load from `https://staticimgly.com` (~285 MB package — not vendored)
 
 ```bash

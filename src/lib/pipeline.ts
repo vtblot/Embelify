@@ -123,6 +123,11 @@ function lanczosUpscale(canvas: HTMLCanvasElement, factor: number): HTMLCanvasEl
   return out;
 }
 
+/** Same-origin TF.js weights under /models (vendored; avoids jsdelivr/unpkg). */
+function localUpscalerModelPath(factor: 2 | 4): string {
+  return `/models/esrgan-slim/x${factor}/model.json`;
+}
+
 async function getUpscaler(factor: 2 | 4): Promise<UpscalerInstance> {
   let pending = upscalerCache.get(factor);
   if (!pending) {
@@ -135,7 +140,11 @@ async function getUpscaler(factor: 2 | 4): Promise<UpscalerInstance> {
       ]);
       const model = "default" in modelMod ? modelMod.default : modelMod;
       return new Upscaler({
-        model: model as never,
+        // Explicit absolute path → same-origin assets, no CDN fallback
+        model: {
+          ...(model as object),
+          path: localUpscalerModelPath(factor),
+        } as never,
       }) as unknown as UpscalerInstance;
     })();
     upscalerCache.set(factor, pending);
