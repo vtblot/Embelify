@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="meta.title">Embelify — Upscale · Cutout · SVG</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"></div>
@@ -37,7 +35,7 @@
           <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" required />
           <span class="dropzone-orbit" aria-hidden="true"></span>
           <span class="dropzone-title" data-i18n="dropzone.title">Drop an image</span>
-          <span class="dropzone-hint" data-i18n="dropzone.hint">PNG, JPEG, WebP — never uploaded or saved</span>
+          <span class="dropzone-hint" data-i18n="dropzone.hint">PNG, JPEG, WebP — max 25 MB — never uploaded or saved</span>
           <span class="dropzone-file" id="file-name" hidden></span>
         </label>
 
@@ -109,7 +107,6 @@
         <div class="preview-frame">
           <div class="checker" aria-hidden="true"></div>
           <img id="preview-img" alt="Result" data-i18n-aria="preview.alt" hidden />
-          <div id="preview-svg" class="svg-host" hidden></div>
         </div>
         <div class="preview-meta">
           <p id="preview-label" data-i18n="preview.default">Preview</p>

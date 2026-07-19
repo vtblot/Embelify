@@ -25,6 +25,11 @@ import {
   setSourceFile,
   wipeSession,
 } from "./lib/session";
+import {
+  ImageValidationError,
+  validateImageFile,
+  type ImageValidationCode,
+} from "./lib/validateImage";
 
 const form = document.getElementById("pipeline-form") as HTMLFormElement;
 const dropzone = document.getElementById("dropzone") as HTMLLabelElement;
@@ -34,7 +39,6 @@ const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLParagraphElement;
 const preview = document.getElementById("preview") as HTMLElement;
 const previewImg = document.getElementById("preview-img") as HTMLImageElement;
-const previewSvg = document.getElementById("preview-svg") as HTMLDivElement;
 const previewLabel = document.getElementById("preview-label") as HTMLParagraphElement;
 const stepBadge = document.getElementById("step-badge") as HTMLParagraphElement;
 const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
@@ -71,6 +75,12 @@ const BG_HINT_KEY: Record<BgMode, Parameters<typeof t>[0]> = {
   chroma: "step2.hint.chroma",
   auto: "step2.hint.auto",
   ai: "step2.hint.ai",
+};
+
+const VALIDATION_KEY: Record<ImageValidationCode, Parameters<typeof t>[0]> = {
+  tooLarge: "status.fileTooLarge",
+  badType: "status.fileBadType",
+  badImage: "status.fileBadImage",
 };
 
 function syncBgUi() {
@@ -112,8 +122,6 @@ function resetPreviewUi() {
   preview.hidden = true;
   previewImg.hidden = true;
   previewImg.removeAttribute("src");
-  previewSvg.hidden = true;
-  previewSvg.innerHTML = "";
   stepBadge.hidden = true;
   stepBadge.classList.remove("is-loading", "is-ready");
   downloadBtn.disabled = true;
@@ -169,8 +177,6 @@ async function showCanvasPreview(
     blob,
     filename: "embelify.png",
   });
-  previewSvg.hidden = true;
-  previewSvg.innerHTML = "";
   preview.hidden = false;
   downloadBtn.disabled = true;
 
@@ -180,16 +186,18 @@ async function showCanvasPreview(
   setBadge(t(STEP_READY_KEY[step]), "ready", generation);
 }
 
-function showSvgPreview(svg: string, generation: number) {
+/**
+ * Render SVG via <img src="blob:…"> — never inject markup into the DOM
+ * (ImageTracer / crafted SVG must not execute script in our origin).
+ */
+async function showSvgPreview(svg: string, generation: number) {
   if (generation !== runGeneration) return;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  setResult({ kind: "svg", blob, svg, filename: "embelify.svg" });
-  previewImg.hidden = true;
-  previewImg.removeAttribute("src");
-  previewSvg.innerHTML = svg;
-  previewSvg.hidden = false;
+  const { previewUrl } = setResult({ kind: "svg", blob, svg, filename: "embelify.svg" });
   preview.hidden = false;
   downloadBtn.disabled = false;
+  await waitForImgPaint(previewUrl);
+  if (generation !== runGeneration) return;
   setBadge(t(STEP_READY_KEY.svg), "ready", generation);
   previewLabel.textContent = t("preview.svgReady");
 }
@@ -203,12 +211,44 @@ function readOptions() {
   };
 }
 
+async function adoptSourceFile(file: File | null): Promise<boolean> {
+  if (!file) {
+    assignSource(null);
+    return false;
+  }
+  try {
+    await validateImageFile(file);
+  } catch (err) {
+    assignSource(null);
+    fileInput.value = "";
+    showFileName(null);
+    resetPreviewUi();
+    const code =
+      err instanceof ImageValidationError ? err.code : ("badImage" as const);
+    setStatus(t(VALIDATION_KEY[code]), true);
+    return false;
+  }
+  assignSource(file);
+  return true;
+}
+
 async function runLive(reason: "auto" | "manual" = "auto") {
   const file = getSourceFile() ?? fileInput.files?.[0] ?? null;
   if (!file) {
     if (reason === "manual") setStatus(t("status.choose"), true);
     return;
   }
+
+  try {
+    await validateImageFile(file);
+  } catch (err) {
+    const code =
+      err instanceof ImageValidationError ? err.code : ("badImage" as const);
+    setStatus(t(VALIDATION_KEY[code]), true);
+    resetPreviewUi();
+    return;
+  }
+
   assignSource(file);
 
   const opts = readOptions();
@@ -250,7 +290,7 @@ async function runLive(reason: "auto" | "manual" = "auto") {
     if (myGen !== runGeneration) return;
 
     if (result.kind === "svg") {
-      showSvgPreview(result.svg, myGen);
+      await showSvgPreview(result.svg, myGen);
     } else {
       const filename =
         result.blob.type === "image/webp" ? "embelify.webp" : "embelify.png";
@@ -259,8 +299,6 @@ async function runLive(reason: "auto" | "manual" = "auto") {
         blob: result.blob,
         filename,
       });
-      previewSvg.hidden = true;
-      previewSvg.innerHTML = "";
       preview.hidden = false;
       await waitForImgPaint(previewUrl);
       if (myGen !== runGeneration) return;
@@ -345,20 +383,25 @@ bgModeSelect.addEventListener("change", () => {
 dropzone.addEventListener("drop", (e) => {
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  fileInput.files = dt.files;
-  assignSource(file);
-  preloadModels();
-  scheduleLiveRun();
+  void (async () => {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    const ok = await adoptSourceFile(file);
+    if (!ok) return;
+    preloadModels();
+    scheduleLiveRun();
+  })();
 });
 
 fileInput.addEventListener("change", () => {
-  assignSource(fileInput.files?.[0] ?? null);
-  if (fileInput.files?.[0]) {
+  void (async () => {
+    const file = fileInput.files?.[0] ?? null;
+    const ok = await adoptSourceFile(file);
+    if (!ok || !file) return;
     preloadModels();
     scheduleLiveRun();
-  }
+  })();
 });
 
 upscaleSelect.addEventListener("change", scheduleLiveRun);
