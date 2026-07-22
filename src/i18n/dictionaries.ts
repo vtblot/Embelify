@@ -25,6 +25,7 @@ export type Dict = {
   "step2.edges.normal": string;
   "step2.edges.tight": string;
   "step2.scope": string;
+  "step2.scope.auto": string;
   "step2.scope.exterior": string;
   "step2.scope.interior": string;
   "step3.label": string;
@@ -131,9 +132,10 @@ export const en: Dict = {
   "step2.edges": "Edges",
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Tighter — crop ~5px fringe / arcs",
-  "step2.scope": "Contours",
-  "step2.scope.exterior": "Exterior only — keep eyes, open large letter holes",
-  "step2.scope.interior": "Exterior + interior — also clear holes",
+  "step2.scope": "Holes",
+  "step2.scope.auto": "Auto — keep icon eyes, clear letter holes",
+  "step2.scope.exterior": "Keep closed holes — eyes & letter fills stay",
+  "step2.scope.interior": "Clear closed holes — letters, rings & eyes",
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
@@ -254,9 +256,10 @@ export const fr: Dict = {
   "step2.edges": "Bords",
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Serré — coupe ~5px de halo / arcs",
-  "step2.scope": "Contours",
-  "step2.scope.exterior": "Extérieur seul — garde les yeux, ouvre les grands trous de lettres",
-  "step2.scope.interior": "Extérieur + intérieur — vide aussi les trous",
+  "step2.scope": "Trous",
+  "step2.scope.auto": "Auto — garde les yeux du picto, vide les lettres",
+  "step2.scope.exterior": "Garder les trous fermés — yeux et lettres pleines",
+  "step2.scope.interior": "Vider les trous fermés — lettres, anneaux et yeux",
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":

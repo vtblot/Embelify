@@ -3,8 +3,8 @@ import fs from "fs";
 import zlib from "zlib";
 
 /**
- * Wordmark fixture: black cat head with small white eyes + letter “O” with a large
- * white counter, on a white background. Exterior chroma must keep eyes and open the O.
+ * Wordmark fixture: black cat head with small white eyes + letters B and O with
+ * white counters, on a white background. Auto scope must keep eyes and open B/O.
  */
 function writeWordmarkPng(path) {
   function crc32(buf) {
@@ -24,7 +24,7 @@ function writeWordmarkPng(path) {
     return Buffer.concat([len, t, data, crc]);
   }
 
-  const w = 400;
+  const w = 420;
   const h = 160;
   const raw = Buffer.alloc((w * 4 + 1) * h);
   for (let y = 0; y < h; y++) {
@@ -37,8 +37,12 @@ function writeWordmarkPng(path) {
       const inHead = dx * dx + dy * dy <= 52 * 52;
       const inEyeL = (x - 52) * (x - 52) + (y - 70) * (y - 70) <= 7 * 7;
       const inEyeR = (x - 88) * (x - 88) + (y - 70) * (y - 70) <= 7 * 7;
-      // Letter O: ring centered at (260, 80)
-      const ox = x - 260;
+      // Letter B body (rect) + two white bowls
+      const inB = x >= 150 && x < 186 && y >= 35 && y < 125;
+      const inBHoleTop = x >= 160 && x < 178 && y >= 45 && y < 72;
+      const inBHoleBot = x >= 160 && x < 180 && y >= 82 && y < 115;
+      // Letter O: ring centered at (280, 80)
+      const ox = x - 280;
       const oy = y - 80;
       const r2 = ox * ox + oy * oy;
       const inOStroke = r2 <= 48 * 48 && r2 >= 28 * 28;
@@ -47,9 +51,9 @@ function writeWordmarkPng(path) {
       let r = 255;
       let g = 255;
       let b = 255;
-      if (inEyeL || inEyeR || inOHole) {
+      if (inEyeL || inEyeR || inOHole || inBHoleTop || inBHoleBot) {
         r = g = b = 250;
-      } else if (inHead || inOStroke) {
+      } else if (inHead || inOStroke || (inB && !inBHoleTop && !inBHoleBot)) {
         r = g = b = 18;
       }
       raw[i] = r;
@@ -89,7 +93,7 @@ await page.evaluate(() => {
   document.getElementById("to_svg").checked = false;
   document.getElementById("bg_mode").value = "chroma";
   document.getElementById("bg_mode").dispatchEvent(new Event("change", { bubbles: true }));
-  document.getElementById("cut_scope").value = "exterior";
+  document.getElementById("cut_scope").value = "auto";
   document.getElementById("cut_scope").dispatchEvent(new Event("change", { bubbles: true }));
   document.getElementById("edge_tighten").value = "tight";
   document.getElementById("edge_tighten").dispatchEvent(new Event("change", { bubbles: true }));
@@ -120,23 +124,31 @@ const stats = await page.evaluate(async () => {
   ctx.drawImage(img, 0, 0);
   const eyeL = ctx.getImageData(52, 70, 1, 1).data;
   const eyeR = ctx.getImageData(88, 70, 1, 1).data;
-  const oHole = ctx.getImageData(260, 80, 1, 1).data;
-  const oStroke = ctx.getImageData(260, 80 - 38, 1, 1).data;
+  const oHole = ctx.getImageData(280, 80, 1, 1).data;
+  const oStroke = ctx.getImageData(280, 80 - 38, 1, 1).data;
+  const bHole = ctx.getImageData(169, 58, 1, 1).data;
   const corner = ctx.getImageData(0, 0, 1, 1).data;
+  const hasAuto = [...document.querySelectorAll("#cut_scope option")].some(
+    (o) => o.value === "auto",
+  );
   return {
     eyeL: [...eyeL],
     eyeR: [...eyeR],
     oHole: [...oHole],
     oStroke: [...oStroke],
+    bHole: [...bHole],
     cornerA: corner[3],
+    hasAuto,
   };
 });
 
 console.log("stats", stats);
+if (!stats.hasAuto) throw new Error("auto cut scope missing");
 if (stats.cornerA !== 0) throw new Error("bg not removed");
 if (stats.eyeL[3] < 200 || stats.eyeL[0] < 200) throw new Error("left eye lost: " + stats.eyeL);
 if (stats.eyeR[3] < 200 || stats.eyeR[0] < 200) throw new Error("right eye lost: " + stats.eyeR);
 if (stats.oHole[3] > 40) throw new Error("O counter still opaque: " + stats.oHole);
+if (stats.bHole[3] > 40) throw new Error("B counter still opaque: " + stats.bHole);
 if (stats.oStroke[3] < 200 || stats.oStroke[0] > 80) {
   throw new Error("O stroke damaged: " + stats.oStroke);
 }

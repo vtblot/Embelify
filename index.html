@@ -103,10 +103,11 @@
               </select>
             </div>
             <div class="step-extra" id="cut-scope-wrap">
-              <label class="sub-label" for="cut_scope" data-i18n="step2.scope">Contours</label>
+              <label class="sub-label" for="cut_scope" data-i18n="step2.scope">Holes</label>
               <select id="cut_scope" name="cut_scope">
-                <option value="exterior" selected data-i18n="step2.scope.exterior">Exterior only — keep eyes / holes</option>
-                <option value="interior" data-i18n="step2.scope.interior">Exterior + interior — also clear holes</option>
+                <option value="auto" selected data-i18n="step2.scope.auto">Auto — keep icon eyes, clear letter holes</option>
+                <option value="exterior" data-i18n="step2.scope.exterior">Keep closed holes — eyes &amp; letter fills stay</option>
+                <option value="interior" data-i18n="step2.scope.interior">Clear closed holes — letters, rings &amp; eyes</option>
               </select>
             </div>
             <p class="step-hint" id="bg-hint" data-i18n="step2.hint.auto">Picks solid-color for logos, subject cutout for photos.</p>

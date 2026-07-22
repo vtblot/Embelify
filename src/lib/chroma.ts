@@ -676,7 +676,7 @@ export function cleanupCutoutEdges(
  * - exterior: only remove background connected to the image edges; keep eyes / interior details
  * - interior: allow interior holes (AI default; chroma also keys enclosed bg pockets)
  */
-export type CutScope = "exterior" | "interior";
+export type CutScope = "exterior" | "interior" | "auto";
 
 /**
  * Dilate an opaque mask by `radius` (4-connected). Used to seal 1px cracks so
@@ -713,6 +713,7 @@ export function applyCutScope(
   original: HTMLCanvasElement,
   scope: CutScope,
 ): HTMLCanvasElement {
+  // auto = exterior restore first, then hybrid hole punch elsewhere
   if (scope === "interior") return cutout;
   if (cutout.width !== original.width || cutout.height !== original.height) {
     console.warn(
@@ -1390,16 +1391,15 @@ export function hardenRasterForSvg(
 }
 
 /**
- * Wordmarks often paint letter counters white (B/A/O). Eyes are also white but small.
- * Punch large enclosed bright islands to transparent; keep small ones (eyes / nose).
- *
- * AA fringe must not count as “exterior” — only true transparent (or the image border).
- * Size cut uses the 2nd-smallest enclosed island as an eye reference so medium
- * letter bowls open without eating the cat eyes.
+ * Hybrid hole policy for mark + wordmark composites (cat + BAGGERO):
+ * - Detect the main pictogram (largest compact dark component).
+ * - Keep small bright islands inside that mark (eyes / nose).
+ * - Punch every enclosed bright island outside the mark (letter counters).
+ * Text-only images (no compact mark) punch all enclosed bright holes.
  */
-export function punchLargeEnclosedBrightHoles(
+export function punchHybridMarkTextHoles(
   canvas: HTMLCanvasElement,
-  opts: { maxKeepRatio?: number; minLuma?: number } = {},
+  opts: { minLuma?: number } = {},
 ): HTMLCanvasElement {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
@@ -1415,20 +1415,96 @@ export function punchLargeEnclosedBrightHoles(
   if (opaqueN < 64) return canvas;
 
   const minLuma = opts.minLuma ?? 170;
-  const minSide = Math.min(w, h);
-  const eyeRadius = Math.max(7, minSide * 0.08);
-  const eyeArea = Math.floor(Math.PI * eyeRadius * eyeRadius);
-  const maxKeepRatio = opts.maxKeepRatio ?? 0.012;
-
-  const label = new Int32Array(w * h);
+  const darkId = new Int32Array(w * h);
   const queue = new Int32Array(w * h);
-  let next = 1;
-  const islands: { size: number; cells: number[] }[] = [];
+  type DarkComp = {
+    id: number;
+    size: number;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  const comps: DarkComp[] = [];
+  let nextDark = 1;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const start = y * w + x;
-      if (label[start]) continue;
+      if (darkId[start]) continue;
+      const si = start * 4;
+      if (data[si + 3] < 200) continue;
+      if (luma(data[si], data[si + 1], data[si + 2]) >= 110) continue;
+
+      let qh = 0;
+      let qt = 0;
+      darkId[start] = nextDark;
+      queue[qt++] = start;
+      let size = 0;
+      let minX = x;
+      let maxX = x;
+      let minY = y;
+      let maxY = y;
+
+      while (qh < qt) {
+        const idx = queue[qh++];
+        size += 1;
+        const cx = idx % w;
+        const cy = (idx / w) | 0;
+        if (cx < minX) minX = cx;
+        if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy;
+        if (cy > maxY) maxY = cy;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const nidx = ny * w + nx;
+            if (darkId[nidx]) continue;
+            const ni = nidx * 4;
+            if (data[ni + 3] < 200) continue;
+            if (luma(data[ni], data[ni + 1], data[ni + 2]) >= 110) continue;
+            darkId[nidx] = nextDark;
+            queue[qt++] = nidx;
+          }
+        }
+      }
+
+      if (size >= 80) {
+        comps.push({ id: nextDark, size, minX, maxX, minY, maxY });
+      }
+      nextDark += 1;
+    }
+  }
+
+  // Pictogram = largest compact dark blob (not a long wordmark bar).
+  let mark: DarkComp | null = null;
+  for (const c of comps) {
+    const bw = c.maxX - c.minX + 1;
+    const bh = c.maxY - c.minY + 1;
+    const ar = bw / Math.max(1, bh);
+    if (ar > 1.85 || ar < 0.4) continue; // skip elongated wordmark runs
+    if (!mark || c.size > mark.size) mark = c;
+  }
+  // Text-only: no solid pictogram → treat everything as letters
+  if (mark && mark.size < opaqueN * 0.06) mark = null;
+
+  const markShort = mark
+    ? Math.min(mark.maxX - mark.minX + 1, mark.maxY - mark.minY + 1)
+    : Math.min(w, h);
+  const eyeRadius = Math.max(7, markShort * 0.11);
+  const eyeArea = Math.floor(Math.PI * eyeRadius * eyeRadius);
+
+  const brightLabel = new Int32Array(w * h);
+  let nextBright = 1;
+  const islands: { size: number; cells: number[]; inMark: boolean }[] = [];
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = y * w + x;
+      if (brightLabel[start]) continue;
       const si = start * 4;
       if (data[si + 3] < 200) continue;
       if (luma(data[si], data[si + 1], data[si + 2]) < minLuma) continue;
@@ -1437,7 +1513,9 @@ export function punchLargeEnclosedBrightHoles(
       let qt = 0;
       let touchesClear = false;
       let size = 0;
-      label[start] = next;
+      let markVotes = 0;
+      let darkVotes = 0;
+      brightLabel[start] = nextBright;
       queue[qt++] = start;
       const cells: number[] = [];
 
@@ -1447,7 +1525,6 @@ export function punchLargeEnclosedBrightHoles(
         size += 1;
         const cx = idx % w;
         const cy = (idx / w) | 0;
-        // Only real holes / border — not mid-alpha AA against ink
         if (touchesTransparent(data, w, h, cx, cy, 1)) touchesClear = true;
 
         for (let dy = -1; dy <= 1; dy++) {
@@ -1460,43 +1537,44 @@ export function punchLargeEnclosedBrightHoles(
               continue;
             }
             const nidx = ny * w + nx;
-            if (label[nidx]) continue;
             const ni = nidx * 4;
             const na = data[ni + 3];
             if (na < 16) {
               touchesClear = true;
               continue;
             }
-            // Soft AA / dark ink: stop growth, but do not treat as exterior
+            if (brightLabel[nidx]) continue;
             if (na < 200) continue;
-            if (luma(data[ni], data[ni + 1], data[ni + 2]) < minLuma - 30) continue;
-            label[nidx] = next;
+            const nL = luma(data[ni], data[ni + 1], data[ni + 2]);
+            if (nL < minLuma - 30) {
+              // Ink ring — vote which dark component owns this hole
+              darkVotes += 1;
+              if (mark && darkId[nidx] === mark.id) markVotes += 1;
+              continue;
+            }
+            brightLabel[nidx] = nextBright;
             queue[qt++] = nidx;
           }
         }
       }
 
-      if (!touchesClear && size >= 24) {
-        islands.push({ size, cells });
+      if (!touchesClear && size >= 20) {
+        const inMark = Boolean(mark) && darkVotes > 0 && markVotes / darkVotes >= 0.45;
+        islands.push({ size, cells, inMark });
       }
-      next += 1;
+      nextBright += 1;
     }
   }
 
-  if (islands.length === 0) return canvas;
-
-  islands.sort((a, b) => a.size - b.size);
-  // Assume the smallest 1–2 enclosed whites are eyes/nose; punch clearly larger bowls.
-  const eyeRef = islands.length >= 2 ? islands[1].size : islands[0].size;
-  const punchAbove = Math.max(
-    Math.floor(eyeRef * 1.75),
-    Math.floor(eyeArea * 0.35),
-    Math.floor(opaqueN * maxKeepRatio),
-  );
-
   let changed = false;
+  // No pictogram: keep moderate islands (ring centers / features); punch only large counters.
+  const fallbackKeep = Math.max(eyeArea, Math.floor(opaqueN * 0.02));
   for (const island of islands) {
-    if (island.size <= punchAbove) continue;
+    const keep = mark
+      ? island.inMark && island.size <= eyeArea
+      : island.size <= fallbackKeep;
+    if (keep) continue;
+    // Letter counters (or oversized mark holes) → transparent
     for (const idx of island.cells) {
       data[idx * 4 + 3] = 0;
     }
@@ -1511,6 +1589,14 @@ export function punchLargeEnclosedBrightHoles(
   if (!outCtx) throw new Error("Canvas 2D indisponible.");
   outCtx.putImageData(image, 0, 0);
   return out;
+}
+
+/** @deprecated Prefer punchHybridMarkTextHoles for mark+wordmark composites. */
+export function punchLargeEnclosedBrightHoles(
+  canvas: HTMLCanvasElement,
+  opts: { maxKeepRatio?: number; minLuma?: number } = {},
+): HTMLCanvasElement {
+  return punchHybridMarkTextHoles(canvas, { minLuma: opts.minLuma });
 }
 
 /**
@@ -1534,7 +1620,7 @@ export function removeSolidBackground(
   if (!ctx) throw new Error("Canvas 2D indisponible.");
 
   const edge: EdgeTighten = opts.edge ?? "normal";
-  const scope: CutScope = opts.scope ?? "exterior";
+  const scope: CutScope = opts.scope ?? "auto";
   const p = edgeParams(edge);
 
   const w = canvas.width;
@@ -1677,6 +1763,7 @@ export function removeSolidBackground(
   if (!keyedCtx) throw new Error("Canvas 2D indisponible.");
   keyedCtx.putImageData(image, 0, 0);
   const cleaned = cleanupCutoutEdges(keyed, edge, bg);
-  // Open large white letter counters; keep small eye/nose whites
-  return punchLargeEnclosedBrightHoles(cleaned);
+  // auto: pictogram eyes kept, letter counters cleared. exterior: keep all closed holes.
+  if (scope === "auto") return punchHybridMarkTextHoles(cleaned);
+  return cleaned;
 }

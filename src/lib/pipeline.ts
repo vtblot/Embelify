@@ -4,7 +4,7 @@ import {
   flattenLogoForSvg,
   hardenRasterForSvg,
   looksLikeFlatGraphic,
-  punchLargeEnclosedBrightHoles,
+  punchHybridMarkTextHoles,
   removeSolidBackground,
   scrubMismatchedEdgeColors,
   type CutScope,
@@ -35,7 +35,7 @@ export type PipelineOptions = {
   bgMode?: BgMode;
   /** Chroma / logo edge cleanup strength. */
   edgeTighten?: EdgeTighten;
-  /** exterior = keep eyes/holes; interior = also clear enclosed bg */
+  /** exterior = keep closed holes; interior = clear them; auto = eyes kept, letters cleared */
   cutScope?: CutScope;
   toSvg: boolean;
   /** SVG mode: logo flatten vs general image. */
@@ -335,7 +335,7 @@ async function removeBackgroundAi(
   // (hair / soft photo mattes must not be hardened).
   const logoLike = looksLikeFlatGraphic(canvas);
   const edge: EdgeTighten = opts.edgeTighten ?? "normal";
-  const scope: CutScope = opts.cutScope ?? "exterior";
+  const scope: CutScope = opts.cutScope ?? "auto";
   // Keep original pixels to restore white eyes / interior details
   const original = cloneCanvas(canvas);
 
@@ -386,8 +386,13 @@ async function removeBackgroundAi(
     raw = cleaned;
   }
 
-  if (scope === "exterior") {
-    progress(opts, "Contours extérieurs — restauration des détails intérieurs…");
+  if (scope === "exterior" || scope === "auto") {
+    progress(
+      opts,
+      scope === "auto"
+        ? "Contours mixtes — yeux du picto gardés, trous de lettres vidés…"
+        : "Contours extérieurs — restauration des détails intérieurs…",
+    );
     const restored = applyCutScope(raw, original, "exterior");
     wipeCanvas(raw);
     raw = restored;
@@ -402,10 +407,8 @@ async function removeBackgroundAi(
     } else {
       wipeCanvas(scrubbed);
     }
-    // Exterior restore brings back eyes AND white letter counters.
-    // Open large counters; keep small eye/nose whites (logo + flat marks).
-    if (logoLike) {
-      const punched = punchLargeEnclosedBrightHoles(raw);
+    if (scope === "auto" && logoLike) {
+      const punched = punchHybridMarkTextHoles(raw);
       if (punched !== raw) {
         wipeCanvas(raw);
         raw = punched;
@@ -438,7 +441,7 @@ async function removeBackgroundFromCanvas(
     progress(opts, "Suppression du fond uni (flood-fill depuis les bords)…");
     const out = removeSolidBackground(canvas, {
       edge: opts.edgeTighten ?? "normal",
-      scope: opts.cutScope ?? "exterior",
+      scope: opts.cutScope ?? "auto",
     });
     wipeCanvas(canvas);
     return out;
