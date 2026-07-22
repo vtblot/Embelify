@@ -180,6 +180,16 @@ async function tensorToCanvas(tensor: {
   return out;
 }
 
+function canvasHasTransparency(canvas: HTMLCanvasElement): boolean {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return false;
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 250) return true;
+  }
+  return false;
+}
+
 async function upscaleCanvas(
   canvas: HTMLCanvasElement,
   factor: 2 | 4,
@@ -191,6 +201,15 @@ async function upscaleCanvas(
     const scale = Math.sqrt(MAX_OUTPUT_PIXELS / (canvas.width * canvas.height));
     progress(opts, `Upscale limité (×${scale.toFixed(2)}) pour rester fluide…`);
     const out = lanczosUpscale(canvas, scale);
+    wipeCanvas(canvas);
+    return out;
+  }
+
+  // After cutout, keep alpha intact — ESRGAN path flattens transparency and
+  // recreates white fringe. Lanczos is the right tool for transparent logos.
+  if (canvasHasTransparency(canvas)) {
+    progress(opts, `Upscale ×${factor} (préserve la transparence)…`);
+    const out = lanczosUpscale(canvas, factor);
     wipeCanvas(canvas);
     return out;
   }
@@ -474,18 +493,34 @@ export async function runPipeline(
   await emitStep(opts, "source", canvas);
 
   try {
-    if (opts.upscale === 2 || opts.upscale === 4) {
-      emitStepStart(opts, "upscale");
-      canvas = await upscaleCanvas(canvas, opts.upscale, opts);
-      throwIfAborted(opts.signal);
-      await emitStep(opts, "upscale", canvas);
-    }
-
+    // Cutout BEFORE upscale when both are on — upscaling first inflates AA
+    // fringe into white crumbs that Serré then struggles to erase.
     if (opts.removeBg) {
       emitStepStart(opts, "background");
       canvas = await removeBackgroundFromCanvas(canvas, opts);
       throwIfAborted(opts.signal);
       await emitStep(opts, "background", canvas);
+    }
+
+    if (opts.upscale === 2 || opts.upscale === 4) {
+      emitStepStart(opts, "upscale");
+      canvas = await upscaleCanvas(canvas, opts.upscale, opts);
+      throwIfAborted(opts.signal);
+      // Final scrub after upscale — Lanczos can still soften ear tips to light crumbs
+      if (opts.removeBg) {
+        const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(canvas, {
+          maxPasses: (opts.edgeTighten ?? "normal") === "tight" ? 12 : 6,
+        });
+        if (removed > 0) {
+          progress(
+            opts,
+            `Résidu post-upscale détecté (${removed} px) — nettoyage…`,
+          );
+          wipeCanvas(canvas);
+          canvas = scrubbed;
+        }
+      }
+      await emitStep(opts, "upscale", canvas);
     }
 
     if (opts.toSvg) {
