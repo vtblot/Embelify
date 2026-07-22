@@ -956,6 +956,71 @@ export function scrubMismatchedEdgeColors(
     }
   }
 
+  // Peel exterior-connected light clusters (white AA crumbs on dark logos)
+  // that survive matte + tip scrub — BFS from transparent / near-transparent.
+  // Stops at the dark body so interior lights (eyes) stay intact.
+  {
+    const LIGHT = Math.max(165, Math.min(235, Math.round(coreMean + 85)));
+    const peel = new Uint8Array(w * h);
+    const queue = new Int32Array(w * h);
+    let qh = 0;
+    let qt = 0;
+    const seedClear = (idx: number) => {
+      if (peel[idx] || data[idx * 4 + 3] >= 32) return;
+      peel[idx] = 1;
+      queue[qt++] = idx;
+    };
+    for (let x = 0; x < w; x++) {
+      seedClear(x);
+      seedClear((h - 1) * w + x);
+    }
+    for (let y = 0; y < h; y++) {
+      seedClear(y * w);
+      seedClear(y * w + (w - 1));
+    }
+    for (let i = 0; i < w * h; i++) {
+      if (data[i * 4 + 3] < 32) seedClear(i);
+    }
+
+    let peelN = 0;
+    while (qh < qt) {
+      const idx = queue[qh++];
+      const x = idx % w;
+      const y = (idx / w) | 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const nidx = ny * w + nx;
+          if (peel[nidx]) continue;
+          const ni = nidx * 4;
+          const a = data[ni + 3];
+          if (a < 32) {
+            peel[nidx] = 1;
+            queue[qt++] = nidx;
+            continue;
+          }
+          if (a < 40) continue;
+          if (luma(data[ni], data[ni + 1], data[ni + 2]) < LIGHT) continue;
+          peel[nidx] = 2;
+          peelN += 1;
+          queue[qt++] = nidx;
+        }
+      }
+    }
+
+    // Apply only if peel stays a fringe, not a large light subject.
+    if (peelN > 0 && peelN <= Math.max(200, Math.floor(opaqueN * 0.25))) {
+      for (let i = 0; i < peel.length; i++) {
+        if (peel[i] !== 2) continue;
+        data[i * 4 + 3] = 0;
+        removed += 1;
+      }
+    }
+  }
+
   if (removed === 0) return { canvas, removed: 0 };
 
   const out = document.createElement("canvas");
