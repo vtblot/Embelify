@@ -13,6 +13,7 @@ import {
   preloadModels,
   runPipeline,
   type BgMode,
+  type EdgeTighten,
   type PipelineStep,
   type UpscaleFactor,
 } from "./lib/pipeline";
@@ -42,6 +43,8 @@ const clearBtn = document.getElementById("clear-btn") as HTMLButtonElement;
 const removeBgToggle = document.getElementById("remove_bg") as HTMLInputElement;
 const bgModeSelect = document.getElementById("bg_mode") as HTMLSelectElement;
 const bgModeWrap = document.getElementById("bg-mode-wrap") as HTMLElement;
+const edgeTightenSelect = document.getElementById("edge_tighten") as HTMLSelectElement;
+const edgeTightenWrap = document.getElementById("edge-tighten-wrap") as HTMLElement;
 const bgHint = document.getElementById("bg-hint") as HTMLParagraphElement;
 const upscaleSelect = document.getElementById("upscale") as HTMLSelectElement;
 const toSvgToggle = document.getElementById("to_svg") as HTMLInputElement;
@@ -74,10 +77,14 @@ const BG_HINT_KEY: Record<BgMode, Parameters<typeof t>[0]> = {
 };
 
 function syncBgUi() {
-  bgModeWrap.hidden = !removeBgToggle.checked;
-  bgHint.hidden = !removeBgToggle.checked;
-  if (removeBgToggle.checked) {
-    bgHint.textContent = t(BG_HINT_KEY[bgModeSelect.value as BgMode] ?? "step2.hint.chroma");
+  const rembgOn = removeBgToggle.checked;
+  const mode = bgModeSelect.value as BgMode;
+  bgModeWrap.hidden = !rembgOn;
+  // Edge tighten only applies to solid-color / auto logo path — not AI photo cutout
+  edgeTightenWrap.hidden = !rembgOn || mode === "ai";
+  bgHint.hidden = !rembgOn;
+  if (rembgOn) {
+    bgHint.textContent = t(BG_HINT_KEY[mode] ?? "step2.hint.chroma");
   }
 }
 
@@ -199,6 +206,7 @@ function readOptions() {
     upscale: Number(upscaleSelect.value) as UpscaleFactor,
     removeBg: removeBgToggle.checked,
     bgMode: bgModeSelect.value as BgMode,
+    edgeTighten: edgeTightenSelect.value as EdgeTighten,
     toSvg: toSvgToggle.checked,
   };
 }
@@ -327,6 +335,7 @@ bgModeSelect.addEventListener("change", () => {
   syncBgUi();
   scheduleLiveRun();
 });
+edgeTightenSelect.addEventListener("change", scheduleLiveRun);
 
 ["dragenter", "dragover"].forEach((evt) => {
   dropzone.addEventListener(evt, (e) => {

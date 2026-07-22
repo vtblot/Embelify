@@ -107,16 +107,27 @@ await page.evaluate(() => {
 await page.setInputFiles("#file-input", "/tmp/board-chroma.png");
 
 await page.waitForFunction(() => {
-  const img = document.getElementById("preview-img");
+  const btn = document.getElementById("download-btn");
   const s = document.getElementById("status")?.textContent || "";
-  return (img instanceof HTMLImageElement && !img.hidden && Boolean(img.src))
-    || s.includes("Échec")
-    || Boolean(document.querySelector(".status.is-error"));
-}, { timeout: 60000 });
+  const ready =
+    btn instanceof HTMLButtonElement &&
+    !btn.disabled &&
+    (s.includes("téléchargez") ||
+      s.includes("Download") ||
+      s.includes("à jour") ||
+      s.includes("up to date"));
+  const fail =
+    s.includes("Échec") ||
+    s.toLowerCase().includes("fail") ||
+    Boolean(document.querySelector(".status.is-error"));
+  return ready || fail;
+}, { timeout: 90000 });
 
 const status = await page.textContent("#status");
 console.log("status", status);
-if (status?.includes("Échec")) throw new Error(status || "fail");
+if (status?.includes("Échec") || status?.toLowerCase().includes("fail")) {
+  throw new Error(status || "fail");
+}
 
 // Inspect preview pixels via canvas draw
 const stats = await page.evaluate(async () => {

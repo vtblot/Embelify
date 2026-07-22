@@ -1,9 +1,10 @@
-import { looksLikeFlatGraphic, removeSolidBackground } from "./chroma";
+import { looksLikeFlatGraphic, removeSolidBackground, type EdgeTighten } from "./chroma";
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
 
 export type UpscaleFactor = 1 | 2 | 4;
 /** auto: fond uni pour logos/aplats, IA pour photos */
 export type BgMode = "auto" | "chroma" | "ai";
+export type { EdgeTighten };
 
 export type PipelineStep = "source" | "upscale" | "background" | "svg" | "done";
 
@@ -11,6 +12,8 @@ export type PipelineOptions = {
   upscale: UpscaleFactor;
   removeBg: boolean;
   bgMode?: BgMode;
+  /** Chroma / logo edge cleanup strength (ignored for AI cutout). */
+  edgeTighten?: EdgeTighten;
   toSvg: boolean;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
@@ -289,7 +292,9 @@ async function removeBackgroundFromCanvas(
 
   if (useChroma) {
     progress(opts, "Suppression du fond uni (flood-fill depuis les bords)…");
-    const out = removeSolidBackground(canvas);
+    const out = removeSolidBackground(canvas, {
+      edge: opts.edgeTighten ?? "normal",
+    });
     wipeCanvas(canvas);
     return out;
   }

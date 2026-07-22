@@ -21,6 +21,9 @@ export type Dict = {
   "step2.hint.chroma": string;
   "step2.hint.auto": string;
   "step2.hint.ai": string;
+  "step2.edges": string;
+  "step2.edges.normal": string;
+  "step2.edges.tight": string;
   "step3.label": string;
   "step3.optional": string;
   "step3.desc": string;
@@ -110,6 +113,9 @@ export const en: Dict = {
   "step2.hint.chroma": "Best for logos / flat graphics: removes a single background color (often black).",
   "step2.hint.auto": "Picks for you: solid color for a logo, subject cutout for a photo.",
   "step2.hint.ai": "For photos: isolates a person or object. Not suited to flat logos.",
+  "step2.edges": "Edges",
+  "step2.edges.normal": "Normal",
+  "step2.edges.tight": "Tighter — kill leftover fringe",
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc": "Vectorizes logos / simple shapes. Not suited to photos.",
@@ -211,6 +217,9 @@ export const fr: Dict = {
     "Choisit tout seul : fond uni pour un logo, découpe sujet pour une photo.",
   "step2.hint.ai":
     "Pour les photos : isole une personne ou un objet. Pas adapté aux logos plats.",
+  "step2.edges": "Bords",
+  "step2.edges.normal": "Normal",
+  "step2.edges.tight": "Serré — enlève le halo restant",
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc": "Vectorise logos / formes simples. Pas adapté aux photos.",

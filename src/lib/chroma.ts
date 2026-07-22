@@ -449,12 +449,38 @@ function cleanDarkHalos(data: Uint8ClampedArray, w: number, h: number): void {
 }
 
 /**
+ * Logos look best with a hard matte: soft alpha reads as gray/white haze
+ * on the checkerboard. Snap every pixel to fully transparent or opaque.
+ */
+function hardenMatte(data: Uint8ClampedArray, threshold: number): void {
+  for (let i = 3; i < data.length; i += 4) {
+    data[i] = data[i] < threshold ? 0 : 255;
+  }
+}
+
+/**
  * Remove the solid background connected to the image edges.
  * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo cutout.
  */
-export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElement {
+export type EdgeTighten = "normal" | "tight";
+
+export type ChromaOptions = {
+  /** How aggressively to crop fringe after keying. */
+  edge?: EdgeTighten;
+};
+
+export function removeSolidBackground(
+  canvas: HTMLCanvasElement,
+  opts: ChromaOptions = {},
+): HTMLCanvasElement {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
+
+  const edge: EdgeTighten = opts.edge ?? "normal";
+  // Partial-alpha crumbs → haze on checkerboard; drop more in "tight"
+  const softDrop = edge === "tight" ? 110 : 72;
+  const hardenAt = edge === "tight" ? 168 : 120;
+  const erodeRadius = edge === "tight" ? 3 : 2;
 
   const w = canvas.width;
   const h = canvas.height;
@@ -527,7 +553,7 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
       const factor = Math.max(0, Math.min(1, t));
       const nextA = Math.round(data[i + 3] * factor * factor);
       // Near-invisible soft fringe reads as gray haze on the checkerboard — drop it.
-      data[i + 3] = nextA < 40 ? 0 : nextA;
+      data[i + 3] = nextA < softDrop ? 0 : nextA;
     }
   }
 
@@ -538,12 +564,14 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
   decontaminateEdges(data, w, h, bg);
   cleanWashedFringe(data, w, h, bg);
 
-  // Crop ~1–2 fringe pixels around every shape, then unify edge colors
-  erodeAlpha(data, w, h, 2);
+  // Binary matte for logos, then crop fringe and unify edge colors
+  hardenMatte(data, hardenAt);
+  erodeAlpha(data, w, h, erodeRadius);
   recolorEdgesFromInterior(data, w, h);
   cleanDarkHalos(data, w, h);
   cleanWashedFringe(data, w, h, bg);
   peelLightFringeFromDarkSubjects(data, w, h, bg);
+  hardenMatte(data, hardenAt);
 
   const out = document.createElement("canvas");
   out.width = w;
