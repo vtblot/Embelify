@@ -596,6 +596,7 @@ export function cleanupCutoutEdges(
   canvas: HTMLCanvasElement,
   edge: EdgeTighten = "normal",
   bg: Rgb | null = null,
+  hooks?: { onResidue?: (removed: number) => void },
 ): HTMLCanvasElement {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
@@ -618,13 +619,26 @@ export function cleanupCutoutEdges(
   dropSmallIslands(data, w, h);
   hardenMatte(data, p.hardenAt);
 
-  const out = document.createElement("canvas");
-  out.width = w;
-  out.height = h;
-  const outCtx = out.getContext("2d");
-  if (!outCtx) throw new Error("Canvas 2D indisponible.");
-  outCtx.putImageData(image, 0, 0);
-  return out;
+  const mid = document.createElement("canvas");
+  mid.width = w;
+  mid.height = h;
+  const midCtx = mid.getContext("2d");
+  if (!midCtx) throw new Error("Canvas 2D indisponible.");
+  midCtx.putImageData(image, 0, 0);
+
+  // Detect leftover edge colors that don't match the subject core (white crumbs)
+  const scrubbed = scrubMismatchedEdgeColors(mid, {
+    maxPasses: edge === "tight" ? 10 : 5,
+  });
+  if (scrubbed.removed > 0) {
+    hooks?.onResidue?.(scrubbed.removed);
+    if (scrubbed.canvas !== mid) {
+      mid.width = 0;
+      mid.height = 0;
+    }
+    return scrubbed.canvas;
+  }
+  return mid;
 }
 
 /**
@@ -633,6 +647,31 @@ export function cleanupCutoutEdges(
  * - interior: allow interior holes (AI default; chroma also keys enclosed bg pockets)
  */
 export type CutScope = "exterior" | "interior";
+
+/**
+ * Dilate an opaque mask by `radius` (4-connected). Used to seal 1px cracks so
+ * exterior flood doesn't leak into eyes / interior holes.
+ */
+function dilateMask(mask: Uint8Array, w: number, h: number, radius: number): Uint8Array {
+  let cur = mask;
+  for (let pass = 0; pass < radius; pass++) {
+    const next = new Uint8Array(cur);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (cur[idx]) continue;
+        let grow = false;
+        if (x > 0 && cur[idx - 1]) grow = true;
+        else if (x + 1 < w && cur[idx + 1]) grow = true;
+        else if (y > 0 && cur[idx - w]) grow = true;
+        else if (y + 1 < h && cur[idx + w]) grow = true;
+        if (grow) next[idx] = 1;
+      }
+    }
+    cur = next;
+  }
+  return cur;
+}
 
 /**
  * After a cutout, restore interior holes / destroyed bright details (e.g. white eyes)
@@ -658,18 +697,24 @@ export function applyCutScope(
   const oImg = oCtx.getImageData(0, 0, w, h);
   const c = cImg.data;
   const o = oImg.data;
+  const ALPHA_TH = 28;
 
-  // Exterior background = transparent (or very soft) reachable from the image edges
+  // Opaque mask, then seal cracks so eye holes don't connect to the exterior
+  const opaque = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (c[i * 4 + 3] >= ALPHA_TH) opaque[i] = 1;
+  }
+  const sealed = dilateMask(opaque, w, h, 2);
+
   const exterior = new Uint8Array(w * h);
   const queue = new Int32Array(w * h);
   let qh = 0;
   let qt = 0;
-  const ALPHA_TH = 28;
 
   const enq = (x: number, y: number) => {
     const idx = y * w + x;
     if (exterior[idx]) return;
-    if (c[idx * 4 + 3] >= ALPHA_TH) return;
+    if (sealed[idx]) return; // treat sealed matte as wall
     exterior[idx] = 1;
     queue[qt++] = idx;
   };
@@ -706,7 +751,7 @@ export function applyCutScope(
     const oL = luma(o[j], o[j + 1], o[j + 2]);
     const cL = luma(c[j], c[j + 1], c[j + 2]);
 
-    // Hole punched by AI, or bright interior detail darkened/removed (white eye)
+    // Interior of sealed silhouette: restore holes + lost bright details (white eyes)
     const isHole = cA < ALPHA_TH;
     const lostBright = oA > 200 && oL > 170 && (cA < 200 || cL < oL - 50);
     if (isHole || lostBright) {
@@ -724,6 +769,107 @@ export function applyCutScope(
   if (!outCtx) throw new Error("Canvas 2D indisponible.");
   outCtx.putImageData(cImg, 0, 0);
   return out;
+}
+
+/**
+ * Detect silhouette-edge pixels whose color doesn't match the subject core
+ * (classic leftover white/grey fringe the keyer missed) and scrub them.
+ * Only runs on dark-dominant subjects so cream logos stay intact.
+ */
+export function scrubMismatchedEdgeColors(
+  canvas: HTMLCanvasElement,
+  opts: { maxPasses?: number } = {},
+): { canvas: HTMLCanvasElement; removed: number } {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  const w = canvas.width;
+  const h = canvas.height;
+  const image = ctx.getImageData(0, 0, w, h);
+  const { data } = image;
+  const maxPasses = opts.maxPasses ?? 6;
+
+  // Core luma = opaque pixels not on the transparent border
+  let coreSum = 0;
+  let coreN = 0;
+  let opaqueN = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i + 3] < 200) continue;
+      opaqueN += 1;
+      if (touchesTransparent(data, w, h, x, y, 2)) continue;
+      coreSum += luma(data[i], data[i + 1], data[i + 2]);
+      coreN += 1;
+    }
+  }
+  if (opaqueN < 32 || coreN < 16) {
+    return { canvas, removed: 0 };
+  }
+  const coreMean = coreSum / coreN;
+  // Bright subjects (cream cells, white icons): edge lights are the subject
+  if (coreMean > 140) {
+    return { canvas, removed: 0 };
+  }
+
+  // Edge residue = much lighter than the dark core (white chin crumbs, ear fringe)
+  const residueDelta = Math.max(45, 110 - coreMean * 0.35);
+  let removed = 0;
+
+  for (let pass = 0; pass < maxPasses; pass++) {
+    const snap = new Uint8ClampedArray(data);
+    let passRemoved = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (snap[i + 3] < 16) continue;
+        if (!touchesTransparent(snap, w, h, x, y, 1)) continue;
+
+        const L = luma(snap[i], snap[i + 1], snap[i + 2]);
+        if (L < coreMean + residueDelta) continue;
+
+        // Confirm it's fringe, not an intentional bright detail on the rim:
+        // most neighbors should be dark core or transparent (not a bright cluster)
+        let darkN = 0;
+        let brightN = 0;
+        let clearN = 0;
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+              clearN += 1;
+              continue;
+            }
+            const ni = (ny * w + nx) * 4;
+            if (snap[ni + 3] < 16) {
+              clearN += 1;
+              continue;
+            }
+            const nL = luma(snap[ni], snap[ni + 1], snap[ni + 2]);
+            if (nL < coreMean + residueDelta * 0.5) darkN += 1;
+            else brightN += 1;
+          }
+        }
+        if (clearN >= 2 && darkN >= 1 && brightN <= 6) {
+          data[i + 3] = 0;
+          passRemoved += 1;
+        }
+      }
+    }
+    removed += passRemoved;
+    if (passRemoved === 0) break;
+  }
+
+  if (removed === 0) return { canvas, removed: 0 };
+
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) throw new Error("Canvas 2D indisponible.");
+  outCtx.putImageData(image, 0, 0);
+  return { canvas: out, removed };
 }
 
 /**
