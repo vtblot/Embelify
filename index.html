@@ -43,7 +43,7 @@
 
         <fieldset class="steps">
           <legend data-i18n="options.legend">Options</legend>
-          <p class="order-note" data-i18n="options.order">Each change refreshes the preview · order: upscale → background → SVG</p>
+          <p class="order-note" data-i18n="options.order">Each change refreshes the preview · order: background → upscale → SVG</p>
 
           <div class="step">
             <div class="step-head">
@@ -109,6 +109,25 @@
               </label>
             </div>
             <p class="step-desc" data-i18n="step3.desc">Vectorizes logos / simple shapes. Not suited to photos.</p>
+            <div class="step-extra" id="svg-style-wrap" hidden>
+              <label class="sub-label" for="svg_style" data-i18n="step3.style">Style</label>
+              <select id="svg_style" name="svg_style">
+                <option value="clean" selected data-i18n="step3.style.clean">Clean — logos, few paths</option>
+                <option value="balanced" data-i18n="step3.style.balanced">Balanced</option>
+                <option value="detailed" data-i18n="step3.style.detailed">Detailed — keep fine edges</option>
+              </select>
+            </div>
+            <div class="step-extra" id="svg-colors-wrap" hidden>
+              <label class="sub-label" for="svg_colors" data-i18n="step3.colors">Colors</label>
+              <select id="svg_colors" name="svg_colors">
+                <option value="few" data-i18n="step3.colors.few">Few (4)</option>
+                <option value="auto" selected data-i18n="step3.colors.auto">Auto (8)</option>
+                <option value="many" data-i18n="step3.colors.many">Many (16)</option>
+              </select>
+            </div>
+            <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint">
+              Clean + few colors = flatter logo SVG. Turn on transparent background first to avoid tracing crumbs.
+            </p>
           </div>
         </fieldset>
 
