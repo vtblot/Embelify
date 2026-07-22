@@ -127,6 +127,7 @@ const stats = await page.evaluate(async () => {
   const preview = document.querySelector(".preview");
   const frameCs = getComputedStyle(frame);
   const previewCs = getComputedStyle(preview);
+  const checkerCs = getComputedStyle(document.querySelector(".checker"));
   return {
     eyeL: [...eyeL],
     eyeR: [...eyeR],
@@ -136,6 +137,7 @@ const stats = await page.evaluate(async () => {
     frameMaxH: frameCs.maxHeight,
     previewJustify: previewCs.justifyContent,
     previewMinH: previewCs.minHeight,
+    checkerBg: checkerCs.backgroundColor,
   };
 });
 
@@ -149,6 +151,11 @@ if (stats.oStroke[3] < 200 || stats.oStroke[0] > 80) {
 }
 if (!stats.previewJustify.includes("center")) {
   throw new Error("preview not vertically centered: " + stats.previewJustify);
+}
+// Light checker — black wordmarks must remain readable
+const bgMatch = String(stats.checkerBg).match(/rgba?\(\s*(\d+)/i);
+if (!bgMatch || Number(bgMatch[1]) < 140) {
+  throw new Error("checker not light enough for dark logos: " + stats.checkerBg);
 }
 
 console.log("LETTER_HOLES_OK");

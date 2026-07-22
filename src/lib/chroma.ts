@@ -1394,6 +1394,8 @@ export function hardenRasterForSvg(
  * Punch large enclosed bright islands to transparent; keep small ones (eyes / nose).
  *
  * AA fringe must not count as “exterior” — only true transparent (or the image border).
+ * Size cut uses the 2nd-smallest enclosed island as an eye reference so medium
+ * letter bowls open without eating the cat eyes.
  */
 export function punchLargeEnclosedBrightHoles(
   canvas: HTMLCanvasElement,
@@ -1414,16 +1416,14 @@ export function punchLargeEnclosedBrightHoles(
 
   const minLuma = opts.minLuma ?? 170;
   const minSide = Math.min(w, h);
-  // Eyes ≈ disc with radius ~6–9% of the short side; letter counters are larger.
-  const eyeRadius = Math.max(7, minSide * 0.075);
+  const eyeRadius = Math.max(7, minSide * 0.08);
   const eyeArea = Math.floor(Math.PI * eyeRadius * eyeRadius);
   const maxKeepRatio = opts.maxKeepRatio ?? 0.012;
-  const maxKeep = Math.max(eyeArea, Math.floor(opaqueN * maxKeepRatio));
 
   const label = new Int32Array(w * h);
   const queue = new Int32Array(w * h);
   let next = 1;
-  let changed = false;
+  const islands: { size: number; cells: number[] }[] = [];
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1476,15 +1476,31 @@ export function punchLargeEnclosedBrightHoles(
         }
       }
 
-      // Large enclosed white = letter counter → open it. Small = eye/nose → keep.
-      if (!touchesClear && size > maxKeep) {
-        for (const idx of cells) {
-          data[idx * 4 + 3] = 0;
-        }
-        changed = true;
+      if (!touchesClear && size >= 24) {
+        islands.push({ size, cells });
       }
       next += 1;
     }
+  }
+
+  if (islands.length === 0) return canvas;
+
+  islands.sort((a, b) => a.size - b.size);
+  // Assume the smallest 1–2 enclosed whites are eyes/nose; punch clearly larger bowls.
+  const eyeRef = islands.length >= 2 ? islands[1].size : islands[0].size;
+  const punchAbove = Math.max(
+    Math.floor(eyeRef * 1.75),
+    Math.floor(eyeArea * 0.35),
+    Math.floor(opaqueN * maxKeepRatio),
+  );
+
+  let changed = false;
+  for (const island of islands) {
+    if (island.size <= punchAbove) continue;
+    for (const idx of island.cells) {
+      data[idx * 4 + 3] = 0;
+    }
+    changed = true;
   }
 
   if (!changed) return canvas;
