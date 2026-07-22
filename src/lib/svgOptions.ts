@@ -1,7 +1,5 @@
-/** User-facing SVG quality presets. */
-export type SvgStyle = "logo" | "faithful" | "clean" | "balanced" | "detailed";
-/** Palette size for ImageTracer quantization. */
-export type SvgColors = "few" | "auto" | "many";
+/** SVG vectorization controls — mode + continuous sliders. */
+export type SvgMode = "logo" | "general";
 
 export type SvgPaletteColor = {
   r: number;
@@ -24,118 +22,123 @@ export type SvgTraceOptions = {
   viewbox: boolean;
   linefilter: boolean;
   rightangleenhance: boolean;
-  /** Fixed palette — used by Logo style so eyes stay white. */
+  /** Fixed palette — Logo mode with ≤3 levels. */
   pal?: SvgPaletteColor[];
 };
 
-const COLOR_COUNT: Record<SvgColors, number> = {
-  few: 6,
-  auto: 12,
-  many: 24,
+export type SvgSliderControls = {
+  mode: SvgMode;
+  /** Contour detail 1 (simple) … 10 (fine). */
+  detail: number;
+  /** Palette levels 2 … 32 (not “named colors” — quantization buckets). */
+  palette: number;
 };
 
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
 /**
- * Map UI presets → ImageTracer knobs.
+ * Map detail 1–10 → ImageTracer path tolerances.
+ * Low detail = smoother / fewer nodes; high = follow fine edges.
+ */
+function detailToTrace(detail: number): Pick<
+  SvgTraceOptions,
+  "ltres" | "qtres" | "pathomit" | "linefilter" | "rightangleenhance"
+> {
+  const t = (clamp(detail, 1, 10) - 1) / 9;
+  return {
+    ltres: lerp(2.4, 0.25, t),
+    qtres: lerp(2.4, 0.25, t),
+    pathomit: Math.round(lerp(28, 0, t)),
+    linefilter: detail <= 6,
+    rightangleenhance: detail <= 7,
+  };
+}
+
+/**
+ * Resolve ImageTracer options from mode + sliders.
  *
- * "logo" = dark mark + white features: flatten preprocess + fixed 3-color pal
- * (body / white / transparent). Avoids quantization eating cream eyes.
+ * - Logo: flatten dark marks; 2–4 palette levels (N&B / gray logos).
+ * - General: full 2–32 levels for photos / multi-color art.
  */
 export function resolveSvgTraceOptions(
-  style: SvgStyle = "logo",
-  colors: SvgColors = "few",
+  controls: SvgSliderControls = { mode: "logo", detail: 5, palette: 3 },
 ): SvgTraceOptions {
-  const numberofcolors = COLOR_COUNT[colors] ?? 12;
+  const mode = controls.mode === "general" ? "general" : "logo";
+  const detail = clamp(Math.round(controls.detail), 1, 10);
+  let palette = clamp(Math.round(controls.palette), 2, 32);
+  const path = detailToTrace(detail);
 
-  if (style === "logo") {
-    return {
-      ltres: 1,
-      qtres: 1,
-      pathomit: 8,
+  if (mode === "logo") {
+    // Logo flatten is built for a few tones — keep palette in 2–4
+    palette = clamp(palette, 2, 4);
+    const base: SvgTraceOptions = {
+      ...path,
       colorsampling: 0,
-      numberofcolors: 3,
-      // Keep fixed pal intact — extra cycles average colors and wash eyes to gray
+      numberofcolors: palette,
       colorquantcycles: 1,
       strokewidth: 0,
       blurradius: 0,
       blurdelta: 20,
       scale: 1,
       viewbox: true,
-      linefilter: true,
-      rightangleenhance: true,
-      // Fixed pal: dark body, white features, fully transparent bg
-      pal: [
+    };
+    if (palette <= 3) {
+      // Fixed body / white / transparent — stable eyes & letter holes
+      base.numberofcolors = 3;
+      base.pal = [
         { r: 28, g: 28, b: 30, a: 255 },
         { r: 255, g: 255, b: 255, a: 255 },
         { r: 0, g: 0, b: 0, a: 0 },
-      ],
-    };
+      ];
+    } else {
+      // 4 levels: allow one mid-gray without averaging away whites
+      base.colorsampling = 2;
+    }
+    return base;
   }
 
-  if (style === "faithful") {
-    return {
-      ltres: 0.35,
-      qtres: 0.35,
-      pathomit: 2,
-      colorsampling: 2,
-      numberofcolors: Math.max(numberofcolors, 24),
-      strokewidth: 0,
-      blurradius: 0,
-      blurdelta: 20,
-      scale: 1,
-      viewbox: true,
-      linefilter: false,
-      rightangleenhance: false,
-    };
-  }
-
-  if (style === "detailed") {
-    return {
-      ltres: 0.5,
-      qtres: 0.5,
-      pathomit: 4,
-      colorsampling: 2,
-      numberofcolors: Math.max(numberofcolors, 16),
-      strokewidth: 0,
-      blurradius: 0,
-      blurdelta: 20,
-      scale: 1,
-      viewbox: true,
-      linefilter: false,
-      rightangleenhance: false,
-    };
-  }
-
-  if (style === "balanced") {
-    return {
-      ltres: 1,
-      qtres: 1,
-      pathomit: colors === "few" ? 8 : 12,
-      colorsampling: 2,
-      numberofcolors,
-      strokewidth: 0,
-      blurradius: 0,
-      blurdelta: 20,
-      scale: 1,
-      viewbox: true,
-      linefilter: true,
-      rightangleenhance: true,
-    };
-  }
-
-  // clean — flat logos / marks (posterizes gradients on purpose)
-  const pathomit = colors === "few" ? 8 : colors === "auto" ? 14 : 20;
+  // General images / shaded art
   return {
-    ltres: 1.2,
-    qtres: 1.2,
-    pathomit,
+    ...path,
     colorsampling: 2,
-    numberofcolors: Math.min(numberofcolors, 10),
+    numberofcolors: palette,
+    colorquantcycles: palette <= 8 ? 2 : 3,
     strokewidth: 0,
     blurradius: 0,
     blurdelta: 20,
     scale: 1,
     viewbox: true,
-    linefilter: true,
-    rightangleenhance: true,
   };
+}
+
+/** @deprecated — kept for older call sites / smokes during transition */
+export type SvgStyle = SvgMode | "faithful" | "clean" | "balanced" | "detailed";
+/** @deprecated */
+export type SvgColors = "few" | "auto" | "many";
+
+/** Bridge old preset names → slider controls. */
+export function controlsFromLegacy(
+  style?: SvgStyle,
+  colors?: SvgColors,
+): SvgSliderControls {
+  const colorMap: Record<SvgColors, number> = { few: 3, auto: 12, many: 24 };
+  if (style === "logo" || !style) {
+    return { mode: "logo", detail: 5, palette: colorMap[colors ?? "few"] ?? 3 };
+  }
+  if (style === "clean") {
+    return { mode: "general", detail: 3, palette: colorMap[colors ?? "few"] ?? 6 };
+  }
+  if (style === "balanced") {
+    return { mode: "general", detail: 5, palette: colorMap[colors ?? "auto"] ?? 12 };
+  }
+  if (style === "detailed" || style === "faithful") {
+    return { mode: "general", detail: 8, palette: colorMap[colors ?? "many"] ?? 24 };
+  }
+  return { mode: "general", detail: 5, palette: 12 };
 }

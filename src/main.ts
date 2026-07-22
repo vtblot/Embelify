@@ -16,8 +16,7 @@ import {
   type CutScope,
   type EdgeTighten,
   type PipelineStep,
-  type SvgColors,
-  type SvgStyle,
+  type SvgMode,
   type UpscaleFactor,
 } from "./lib/pipeline";
 import {
@@ -54,10 +53,14 @@ const cutScopeWrap = document.getElementById("cut-scope-wrap") as HTMLElement;
 const bgHint = document.getElementById("bg-hint") as HTMLParagraphElement;
 const upscaleSelect = document.getElementById("upscale") as HTMLSelectElement;
 const toSvgToggle = document.getElementById("to_svg") as HTMLInputElement;
-const svgStyleSelect = document.getElementById("svg_style") as HTMLSelectElement;
-const svgStyleWrap = document.getElementById("svg-style-wrap") as HTMLElement;
-const svgColorsSelect = document.getElementById("svg_colors") as HTMLSelectElement;
-const svgColorsWrap = document.getElementById("svg-colors-wrap") as HTMLElement;
+const svgModeSelect = document.getElementById("svg_mode") as HTMLSelectElement;
+const svgModeWrap = document.getElementById("svg-mode-wrap") as HTMLElement;
+const svgDetailInput = document.getElementById("svg_detail") as HTMLInputElement;
+const svgDetailWrap = document.getElementById("svg-detail-wrap") as HTMLElement;
+const svgDetailValue = document.getElementById("svg-detail-value") as HTMLElement;
+const svgPaletteInput = document.getElementById("svg_palette") as HTMLInputElement;
+const svgPaletteWrap = document.getElementById("svg-palette-wrap") as HTMLElement;
+const svgPaletteValue = document.getElementById("svg-palette-value") as HTMLElement;
 const svgHint = document.getElementById("svg-hint") as HTMLParagraphElement;
 const langSelect = document.getElementById("lang-select") as HTMLSelectElement;
 const sisterLink = document.getElementById("sister-link") as HTMLAnchorElement;
@@ -100,13 +103,27 @@ function syncBgUi() {
 
 function syncSvgUi() {
   const svgOn = toSvgToggle.checked;
-  const isLogo = svgStyleSelect.value === "logo";
-  svgStyleWrap.hidden = !svgOn;
-  // Logo forces a fixed 2–3 color palette — Colors would do nothing
-  svgColorsWrap.hidden = !svgOn || isLogo;
+  const mode = svgModeSelect.value as SvgMode;
+  svgModeWrap.hidden = !svgOn;
+  svgDetailWrap.hidden = !svgOn;
+  svgPaletteWrap.hidden = !svgOn;
   svgHint.hidden = !svgOn;
+
   if (svgOn) {
-    svgHint.textContent = t(isLogo ? "step3.hint.logo" : "step3.hint");
+    // Logo mode: palette max 4 (B&W / gray marks)
+    if (mode === "logo") {
+      svgPaletteInput.max = "4";
+      if (Number(svgPaletteInput.value) > 4) svgPaletteInput.value = "3";
+    } else {
+      const wasLogoCap = svgPaletteInput.max === "4";
+      svgPaletteInput.max = "32";
+      if (wasLogoCap && Number(svgPaletteInput.value) <= 4) {
+        svgPaletteInput.value = "12";
+      }
+    }
+    svgDetailValue.textContent = svgDetailInput.value;
+    svgPaletteValue.textContent = svgPaletteInput.value;
+    svgHint.textContent = t(mode === "logo" ? "step3.hint.logo" : "step3.hint.general");
   }
 }
 
@@ -250,8 +267,9 @@ function readOptions() {
     edgeTighten: edgeTightenSelect.value as EdgeTighten,
     cutScope: cutScopeSelect.value as CutScope,
     toSvg: toSvgToggle.checked,
-    svgStyle: svgStyleSelect.value as SvgStyle,
-    svgColors: svgColorsSelect.value as SvgColors,
+    svgMode: svgModeSelect.value as SvgMode,
+    svgDetail: Number(svgDetailInput.value),
+    svgPalette: Number(svgPaletteInput.value),
   };
 }
 
@@ -428,24 +446,20 @@ fileInput.addEventListener("change", () => {
 upscaleSelect.addEventListener("change", scheduleLiveRun);
 toSvgToggle.addEventListener("change", () => {
   syncSvgUi();
-  // Enabling SVG: steer toward Logo flatten (2–4 colors), not Faithful+Many banding
-  if (toSvgToggle.checked) {
-    if (svgStyleSelect.value === "faithful" || svgStyleSelect.value === "clean") {
-      svgStyleSelect.value = "logo";
-    }
-    if (svgColorsSelect.value === "many") svgColorsSelect.value = "few";
-  }
   scheduleLiveRun();
 });
-svgStyleSelect.addEventListener("change", () => {
-  // Logo style ignores Many — keep the Colors control honest
-  if (svgStyleSelect.value === "logo" && svgColorsSelect.value === "many") {
-    svgColorsSelect.value = "few";
-  }
+svgModeSelect.addEventListener("change", () => {
   syncSvgUi();
   scheduleLiveRun();
 });
-svgColorsSelect.addEventListener("change", scheduleLiveRun);
+svgDetailInput.addEventListener("input", () => {
+  svgDetailValue.textContent = svgDetailInput.value;
+  scheduleLiveRun();
+});
+svgPaletteInput.addEventListener("input", () => {
+  svgPaletteValue.textContent = svgPaletteInput.value;
+  scheduleLiveRun();
+});
 
 downloadBtn.addEventListener("click", () => {
   if (!downloadResult()) {

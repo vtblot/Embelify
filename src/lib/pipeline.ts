@@ -12,15 +12,19 @@ import {
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
 import {
   resolveSvgTraceOptions,
+  controlsFromLegacy,
+  type SvgMode,
+  type SvgSliderControls,
+  type SvgTraceOptions,
+  // legacy aliases
   type SvgColors,
   type SvgStyle,
-  type SvgTraceOptions,
 } from "./svgOptions";
 
 export type UpscaleFactor = 1 | 2 | 4;
 /** auto: fond uni pour logos/aplats, IA pour photos */
 export type BgMode = "auto" | "chroma" | "ai";
-export type { CutScope, EdgeTighten, SvgColors, SvgStyle };
+export type { CutScope, EdgeTighten, SvgMode, SvgColors, SvgStyle };
 
 export type PipelineStep = "source" | "upscale" | "background" | "svg" | "done";
 
@@ -33,9 +37,15 @@ export type PipelineOptions = {
   /** exterior = keep eyes/holes; interior = also clear enclosed bg */
   cutScope?: CutScope;
   toSvg: boolean;
-  /** SVG vectorization style — logo flattens to 2–4 colors; faithful keeps shading. */
+  /** SVG mode: logo flatten vs general image. */
+  svgMode?: SvgMode;
+  /** Contour detail 1–10. */
+  svgDetail?: number;
+  /** Palette levels 2–32 (quantization buckets). */
+  svgPalette?: number;
+  /** @deprecated use svgMode */
   svgStyle?: SvgStyle;
-  /** SVG palette size (ignored ceiling for logo style — capped at 4). */
+  /** @deprecated use svgPalette */
   svgColors?: SvgColors;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
@@ -446,19 +456,19 @@ async function removeBackgroundFromCanvas(
 
 /**
  * Scrub + harden matte before vectorize — AA gray rims become noisy SVG halos.
- * Logo style: flatten only (no peel/scrub) — peel after ×4 was deleting cream eyes.
+ * Logo mode: flatten only (no peel/scrub) — peel after ×4 was deleting cream eyes.
  */
 function prepareCanvasForSvg(
   canvas: HTMLCanvasElement,
-  style: SvgStyle,
+  mode: SvgMode,
 ): HTMLCanvasElement {
   if (!canvasHasTransparency(canvas)) return canvas;
-  if (style === "logo") {
+  if (mode === "logo") {
     const flat = flattenLogoForSvg(canvas);
     if (flat !== canvas) wipeCanvas(canvas);
     return flat;
   }
-  const hardened = hardenRasterForSvg(canvas, style);
+  const hardened = hardenRasterForSvg(canvas, "faithful");
   if (hardened !== canvas) wipeCanvas(canvas);
   return hardened;
 }
@@ -505,15 +515,21 @@ function rasterToSvgInWorker(
 
 async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Promise<string> {
   throwIfAborted(opts.signal);
-  const style = opts.svgStyle ?? "logo";
-  const colors = opts.svgColors ?? (style === "logo" ? "few" : "many");
-  const trace = resolveSvgTraceOptions(style, colors);
-  canvas = prepareCanvasForSvg(canvas, style);
+  const controls: SvgSliderControls =
+    opts.svgMode || opts.svgDetail != null || opts.svgPalette != null
+      ? {
+          mode: opts.svgMode ?? "logo",
+          detail: opts.svgDetail ?? 5,
+          palette: opts.svgPalette ?? (opts.svgMode === "general" ? 12 : 3),
+        }
+      : controlsFromLegacy(opts.svgStyle, opts.svgColors);
+  const trace = resolveSvgTraceOptions(controls);
+  canvas = prepareCanvasForSvg(canvas, controls.mode);
   progress(
     opts,
-    style === "logo"
-      ? `Vectorisation SVG logo (aplat 2–${trace.numberofcolors} couleurs)…`
-      : `Vectorisation SVG (${style}, ${trace.numberofcolors} couleurs)…`,
+    controls.mode === "logo"
+      ? `Vectorisation SVG logo (détail ${controls.detail}, ${trace.numberofcolors} niveaux)…`
+      : `Vectorisation SVG (détail ${controls.detail}, ${trace.numberofcolors} niveaux)…`,
   );
   try {
     return await rasterToSvgInWorker(canvas, trace);
@@ -596,7 +612,7 @@ export async function runPipeline(
       throwIfAborted(opts.signal);
       // Final scrub after upscale — Lanczos can still soften ear tips to light crumbs.
       // Skip aggressive scrub when Logo SVG follows: peel was wiping cream eyes.
-      if (opts.removeBg && !(opts.toSvg && (opts.svgStyle ?? "logo") === "logo")) {
+      if (opts.removeBg && !(opts.toSvg && (opts.svgMode ?? opts.svgStyle ?? "logo") === "logo")) {
         const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(canvas, {
           maxPasses: (opts.edgeTighten ?? "normal") === "tight" ? 14 : 10,
           aggressive: true,
