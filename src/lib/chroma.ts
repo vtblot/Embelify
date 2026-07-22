@@ -1119,9 +1119,10 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
     Math.max(18, Math.round(darkB / q)),
   ];
 
-  // Off-white ear AA / false fills sit ~140–210; true logo whites (eyes/nose) are ≥220
-  const FEATURE_HI = 220;
-  const FEATURE_LO = Math.max(170, Math.min(200, coreMean + 100));
+  // Cream eyes/nose are often ~190–245 (not pure 255). Absolute 220 erased them.
+  // Rank vs dark body; size cap still rejects large ear fills.
+  const FEATURE_HI = Math.max(178, Math.min(210, Math.round(coreMean + 95)));
+  const FEATURE_LO = Math.max(150, Math.min(FEATURE_HI - 15, Math.round(coreMean + 70)));
 
   // Label bright candidates; keep only components fully enclosed by dark body
   const brightLabel = new Int32Array(w * h);
@@ -1280,27 +1281,33 @@ export function hardenRasterForSvg(
   const opaqueBefore = countOpaque(data);
   if (opaqueBefore < 32) return canvas;
 
-  // Logo / clean: peel more aggressively; faithful / detailed: light touch
+  // Logo / clean: peel more aggressively; faithful / detailed: light touch.
+  // Logo must NOT peel mid-gray face shading (L~90–140) or the BFS walks into
+  // cream eyes and deletes them before flattenLogoForSvg runs.
   const lightPeel =
     intensity === "logo"
-      ? 125
+      ? 175
       : intensity === "clean"
         ? 130
         : intensity === "balanced"
           ? 145
           : 160;
   const spurPasses =
-    intensity === "logo" || intensity === "clean"
-      ? 3
-      : intensity === "balanced"
-        ? 2
-        : 0;
+    intensity === "logo"
+      ? 1
+      : intensity === "clean"
+        ? 3
+        : intensity === "balanced"
+          ? 2
+          : 0;
   const scrubPasses =
-    intensity === "logo" || intensity === "clean"
-      ? 8
-      : intensity === "balanced"
-        ? 6
-        : 4;
+    intensity === "logo"
+      ? 4
+      : intensity === "clean"
+        ? 8
+        : intensity === "balanced"
+          ? 6
+          : 4;
 
   hardenMatte(data, 128);
   peelLightFringeFromDarkSubjects(data, w, h, null, { lightThreshold: lightPeel });
