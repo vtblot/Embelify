@@ -184,6 +184,7 @@ function erodeAlpha(
 
 /**
  * After erosion, repaint the new edge with interior colors so contours stay uniform.
+ * Prefer dark/mid interior samples — never pull washed light fringe back onto a dark logo.
  */
 function recolorEdgesFromInterior(
   data: Uint8ClampedArray,
@@ -201,7 +202,10 @@ function recolorEdgesFromInterior(
       let g = 0;
       let b = 0;
       let n = 0;
-      // Prefer neighbors that are fully inside (not on the transparent border)
+      let darkR = 0;
+      let darkG = 0;
+      let darkB = 0;
+      let darkN = 0;
       for (let dy = -2; dy <= 2; dy++) {
         for (let dx = -2; dx <= 2; dx++) {
           if (dx === 0 && dy === 0) continue;
@@ -211,29 +215,25 @@ function recolorEdgesFromInterior(
           const ni = (ny * w + nx) * 4;
           if (src[ni + 3] < 200) continue;
           if (touchesTransparent(src, w, h, nx, ny, 1)) continue;
+          const nL = luma(src[ni], src[ni + 1], src[ni + 2]);
           r += src[ni];
           g += src[ni + 1];
           b += src[ni + 2];
           n += 1;
-        }
-      }
-      if (n === 0) {
-        // Fallback: any opaque neighbor
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-            const ni = (ny * w + nx) * 4;
-            if (src[ni + 3] < 200) continue;
-            r += src[ni];
-            g += src[ni + 1];
-            b += src[ni + 2];
-            n += 1;
+          if (nL < 130) {
+            darkR += src[ni];
+            darkG += src[ni + 1];
+            darkB += src[ni + 2];
+            darkN += 1;
           }
         }
       }
-      if (n > 0) {
+      if (darkN > 0) {
+        data[i] = Math.round(darkR / darkN);
+        data[i + 1] = Math.round(darkG / darkN);
+        data[i + 2] = Math.round(darkB / darkN);
+        data[i + 3] = 255;
+      } else if (n > 0) {
         data[i] = Math.round(r / n);
         data[i + 1] = Math.round(g / n);
         data[i + 2] = Math.round(b / n);
@@ -252,28 +252,36 @@ function peelLightFringeFromDarkSubjects(
   data: Uint8ClampedArray,
   w: number,
   h: number,
-  bg: Rgb,
+  bg: Rgb | null,
+  opts: { lightThreshold?: number } = {},
 ): void {
-  const bgL = luma(bg[0], bg[1], bg[2]);
-  if (bgL > 90) return;
+  // After AI cutout there is no solid bg — still peel light fringe on dark logos.
+  if (bg) {
+    const bgL = luma(bg[0], bg[1], bg[2]);
+    if (bgL > 90) return;
+  }
 
-  const LIGHT = 140; // washed smudge / white haze
-  const DARK = 95; // treat as solid body — BFS must not cross
+  const LIGHT = opts.lightThreshold ?? 140;
+  const DARK = 90;
 
   let darkOpaque = 0;
   let brightOpaque = 0;
   let totalOpaque = 0;
+  let lumaSum = 0;
   for (let i = 0; i < data.length; i += 4) {
     if (data[i + 3] < 200) continue;
     totalOpaque += 1;
     const L = luma(data[i], data[i + 1], data[i + 2]);
+    lumaSum += L;
     if (L < DARK) darkOpaque += 1;
     else if (L > LIGHT) brightOpaque += 1;
   }
   if (totalOpaque < 16) return;
-  // Cream / white logo on dark bg — peeling would erase the subject
-  if (brightOpaque / totalOpaque > 0.4) return;
-  if (darkOpaque / totalOpaque < 0.3) return;
+  const meanL = lumaSum / totalOpaque;
+  // Cream / white logo — peeling would erase the subject
+  if (brightOpaque / totalOpaque > 0.55 || meanL > 165) return;
+  // Need a real dark body (allow gray-shaded logos: dark can be ~20%+)
+  if (darkOpaque / totalOpaque < 0.18 && meanL > 110) return;
 
   const remove = new Uint8Array(w * h);
   const queue = new Int32Array(w * h);
@@ -287,7 +295,6 @@ function peelLightFringeFromDarkSubjects(
     if (data[i + 3] < 16) return;
     const L = luma(data[i], data[i + 1], data[i + 2]);
     if (L < LIGHT && data[i + 3] >= 160) return;
-    // Seed: light (or soft-alpha) pixel on the transparent border
     if (!touchesTransparent(data, w, h, x, y, 1)) return;
     remove[idx] = 1;
     queue[qt++] = idx;
@@ -314,10 +321,8 @@ function peelLightFringeFromDarkSubjects(
       const ni = nidx * 4;
       if (data[ni + 3] < 16) continue;
       const nL = luma(data[ni], data[ni + 1], data[ni + 2]);
-      // Soft haze can be mid-luma — still peel if very transparent
       const soft = data[ni + 3] < 160;
       if (!soft && nL < LIGHT) continue;
-      if (!soft && nL < DARK) continue;
       remove[nidx] = 1;
       queue[qt++] = nidx;
     }
@@ -325,11 +330,115 @@ function peelLightFringeFromDarkSubjects(
 
   let removeCount = 0;
   for (let i = 0; i < remove.length; i++) if (remove[i]) removeCount += 1;
-  // Safety valve: never wipe a huge share of the matte
-  if (removeCount > totalOpaque * 0.2) return;
+  // Abort only if we'd wipe the subject (was 0.2 — too tight for thick fringe outlines)
+  if (removeCount > totalOpaque * 0.35) return;
 
   for (let i = 0; i < remove.length; i++) {
     if (remove[i]) data[i * 4 + 3] = 0;
+  }
+}
+
+/**
+ * Eat thin exterior spurs / arcs (e.g. leftover ring fragments under a chin).
+ * Iteratively drops opaque edge pixels that have very few opaque neighbors.
+ */
+function erodeThinSpurs(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  passes: number,
+): void {
+  for (let pass = 0; pass < passes; pass++) {
+    const snapshot = new Uint8ClampedArray(data);
+    let changed = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (snapshot[i + 3] < 16) continue;
+        if (!touchesTransparent(snapshot, w, h, x, y, 1)) continue;
+
+        let opaqueN = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            if (snapshot[(ny * w + nx) * 4 + 3] >= 16) opaqueN += 1;
+          }
+        }
+        // Spur / thin arc tip: almost no body around it
+        if (opaqueN <= 3) {
+          data[i + 3] = 0;
+          changed += 1;
+        }
+      }
+    }
+    if (changed === 0) break;
+  }
+}
+
+/**
+ * Drop small disconnected islands (not the main logo body).
+ */
+function dropSmallIslands(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  maxKeepRatio = 0.02,
+): void {
+  const seen = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  type Comp = { idxs: number[] };
+  const comps: Comp[] = [];
+  let totalOpaque = 0;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = y * w + x;
+      if (seen[start]) continue;
+      if (data[start * 4 + 3] < 16) {
+        seen[start] = 1;
+        continue;
+      }
+      let qh = 0;
+      let qt = 0;
+      queue[qt++] = start;
+      seen[start] = 1;
+      const idxs: number[] = [];
+      while (qh < qt) {
+        const idx = queue[qh++];
+        idxs.push(idx);
+        const cx = idx % w;
+        const cy = (idx / w) | 0;
+        for (const [dx, dy] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ] as const) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const nidx = ny * w + nx;
+          if (seen[nidx]) continue;
+          seen[nidx] = 1;
+          if (data[nidx * 4 + 3] < 16) continue;
+          queue[qt++] = nidx;
+        }
+      }
+      totalOpaque += idxs.length;
+      comps.push({ idxs });
+    }
+  }
+
+  if (comps.length <= 1 || totalOpaque < 32) return;
+  comps.sort((a, b) => b.idxs.length - a.idxs.length);
+  const main = comps[0].idxs.length;
+  for (let c = 1; c < comps.length; c++) {
+    if (comps[c].idxs.length <= Math.max(12, main * maxKeepRatio)) {
+      for (const idx of comps[c].idxs) data[idx * 4 + 3] = 0;
+    }
   }
 }
 
@@ -340,10 +449,12 @@ function cleanWashedFringe(
   data: Uint8ClampedArray,
   w: number,
   h: number,
-  bg: Rgb,
+  bg: Rgb | null,
 ): void {
-  const bgL = luma(bg[0], bg[1], bg[2]);
-  if (bgL > 90) return;
+  if (bg) {
+    const bgL = luma(bg[0], bg[1], bg[2]);
+    if (bgL > 90) return;
+  }
 
   const snapshot = new Uint8ClampedArray(data);
 
@@ -458,6 +569,64 @@ function hardenMatte(data: Uint8ClampedArray, threshold: number): void {
   }
 }
 
+function edgeParams(edge: EdgeTighten) {
+  if (edge === "tight") {
+    return {
+      softDrop: 130,
+      hardenAt: 190,
+      erodeRadius: 5,
+      lightPeel: 115,
+      spurPasses: 10,
+    };
+  }
+  return {
+    softDrop: 72,
+    hardenAt: 120,
+    erodeRadius: 2,
+    lightPeel: 145,
+    spurPasses: 3,
+  };
+}
+
+/**
+ * Shared post-cutout cleanup for logos (chroma or AI).
+ * Makes Normal vs Tighter visibly different and kills thin exterior residue arcs.
+ */
+export function cleanupCutoutEdges(
+  canvas: HTMLCanvasElement,
+  edge: EdgeTighten = "normal",
+  bg: Rgb | null = null,
+): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  const w = canvas.width;
+  const h = canvas.height;
+  const image = ctx.getImageData(0, 0, w, h);
+  const { data } = image;
+  const p = edgeParams(edge);
+
+  // Soft AI mattes → binary, then peel light fringe / spurs
+  hardenMatte(data, p.hardenAt);
+  peelLightFringeFromDarkSubjects(data, w, h, bg, { lightThreshold: p.lightPeel });
+  cleanWashedFringe(data, w, h, bg ?? ([0, 0, 0] as Rgb));
+  dropSmallIslands(data, w, h);
+  erodeThinSpurs(data, w, h, p.spurPasses);
+  erodeAlpha(data, w, h, p.erodeRadius);
+  recolorEdgesFromInterior(data, w, h);
+  peelLightFringeFromDarkSubjects(data, w, h, bg, { lightThreshold: p.lightPeel });
+  erodeThinSpurs(data, w, h, Math.max(2, (p.spurPasses / 2) | 0));
+  dropSmallIslands(data, w, h);
+  hardenMatte(data, p.hardenAt);
+
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) throw new Error("Canvas 2D indisponible.");
+  outCtx.putImageData(image, 0, 0);
+  return out;
+}
+
 /**
  * Remove the solid background connected to the image edges.
  * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo cutout.
@@ -477,10 +646,7 @@ export function removeSolidBackground(
   if (!ctx) throw new Error("Canvas 2D indisponible.");
 
   const edge: EdgeTighten = opts.edge ?? "normal";
-  // Partial-alpha crumbs → haze on checkerboard; drop more in "tight"
-  const softDrop = edge === "tight" ? 110 : 72;
-  const hardenAt = edge === "tight" ? 168 : 120;
-  const erodeRadius = edge === "tight" ? 3 : 2;
+  const p = edgeParams(edge);
 
   const w = canvas.width;
   const h = canvas.height;
@@ -552,32 +718,23 @@ export function removeSolidBackground(
       const t = (d - HARD_DIST) / (SOFT_DIST - HARD_DIST);
       const factor = Math.max(0, Math.min(1, t));
       const nextA = Math.round(data[i + 3] * factor * factor);
-      // Near-invisible soft fringe reads as gray haze on the checkerboard — drop it.
-      data[i + 3] = nextA < softDrop ? 0 : nextA;
+      data[i + 3] = nextA < p.softDrop ? 0 : nextA;
     }
   }
 
   decontaminateEdges(data, w, h, bg);
   cleanDarkHalos(data, w, h);
   cleanWashedFringe(data, w, h, bg);
-  peelLightFringeFromDarkSubjects(data, w, h, bg);
+  peelLightFringeFromDarkSubjects(data, w, h, bg, { lightThreshold: p.lightPeel });
   decontaminateEdges(data, w, h, bg);
   cleanWashedFringe(data, w, h, bg);
 
-  // Binary matte for logos, then crop fringe and unify edge colors
-  hardenMatte(data, hardenAt);
-  erodeAlpha(data, w, h, erodeRadius);
-  recolorEdgesFromInterior(data, w, h);
-  cleanDarkHalos(data, w, h);
-  cleanWashedFringe(data, w, h, bg);
-  peelLightFringeFromDarkSubjects(data, w, h, bg);
-  hardenMatte(data, hardenAt);
-
-  const out = document.createElement("canvas");
-  out.width = w;
-  out.height = h;
-  const outCtx = out.getContext("2d");
-  if (!outCtx) throw new Error("Canvas 2D indisponible.");
-  outCtx.putImageData(image, 0, 0);
-  return out;
+  // Write keyed matte, then shared edge cleanup (erode / spur / islands)
+  const keyed = document.createElement("canvas");
+  keyed.width = w;
+  keyed.height = h;
+  const keyedCtx = keyed.getContext("2d");
+  if (!keyedCtx) throw new Error("Canvas 2D indisponible.");
+  keyedCtx.putImageData(image, 0, 0);
+  return cleanupCutoutEdges(keyed, edge, bg);
 }

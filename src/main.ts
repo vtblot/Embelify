@@ -80,8 +80,8 @@ function syncBgUi() {
   const rembgOn = removeBgToggle.checked;
   const mode = bgModeSelect.value as BgMode;
   bgModeWrap.hidden = !rembgOn;
-  // Edge tighten only applies to solid-color / auto logo path — not AI photo cutout
-  edgeTightenWrap.hidden = !rembgOn || mode === "ai";
+  // Edge cleanup applies to solid-color and as a post-pass after Photo IA
+  edgeTightenWrap.hidden = !rembgOn;
   bgHint.hidden = !rembgOn;
   if (rembgOn) {
     bgHint.textContent = t(BG_HINT_KEY[mode] ?? "step2.hint.chroma");
