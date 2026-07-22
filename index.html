@@ -125,60 +125,60 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc" data-i18n="step3.desc">Use “Logo + gray” for marks with soft shading; “flat B&amp;W” for pure black logos. Palette 3 = flat; 4 = keep a mid-gray.</p>
+            <p class="step-desc" data-i18n="step3.desc">Turn the result into a vector file. Choose the style that matches your image.</p>
             <div class="step-extra svg-recipes" id="svg-recipes-wrap" hidden>
-              <span class="sub-label" data-i18n="step3.recipes">Best setting</span>
-              <div class="recipe-row" role="group" data-i18n-aria="step3.recipes.aria" aria-label="SVG recipes">
+              <span class="sub-label" data-i18n="step3.recipes">Style</span>
+              <div class="recipe-row" role="group" data-i18n-aria="step3.recipes.aria" aria-label="SVG styles">
                 <button type="button" class="recipe recipe-primary" data-svg-recipe="logo" data-i18n="step3.recipe.logo">
-                  Logo + gray — best choice
+                  Logo with shading
                 </button>
                 <button type="button" class="recipe" data-svg-recipe="logo-flat" data-i18n="step3.recipe.logoFlat">
-                  Logo — flat B&amp;W
+                  Simple black logo
                 </button>
                 <button type="button" class="recipe" data-svg-recipe="logo-sharp" data-i18n="step3.recipe.logoSharp">
-                  Logo — finer strokes
+                  Logo, sharper edges
                 </button>
                 <button type="button" class="recipe recipe-muted" data-svg-recipe="photo" data-i18n="step3.recipe.photo">
-                  Photo only
+                  Photo or illustration
                 </button>
               </div>
             </div>
             <details class="step-extra svg-advanced" id="svg-advanced-wrap" hidden>
-              <summary data-i18n="step3.advanced">Advanced (optional)</summary>
+              <summary data-i18n="step3.advanced">Fine-tune (optional)</summary>
               <div class="svg-advanced-body">
                 <div class="step-extra" id="svg-mode-wrap" hidden>
-                  <label class="sub-label" for="svg_mode" data-i18n="step3.mode">Mode</label>
+                  <label class="sub-label" for="svg_mode" data-i18n="step3.mode">Image type</label>
                   <select id="svg_mode" name="svg_mode">
-                    <option value="logo" selected data-i18n="step3.mode.logo">Logo — black / white / gray marks</option>
-                    <option value="general" data-i18n="step3.mode.general">General — photos &amp; multi-color</option>
+                    <option value="logo" selected data-i18n="step3.mode.logo">Logo</option>
+                    <option value="general" data-i18n="step3.mode.general">Photo or illustration</option>
                   </select>
                 </div>
                 <div class="step-extra" id="svg-detail-wrap" hidden>
                   <div class="slider-head">
-                    <label class="sub-label" for="svg_detail" data-i18n="step3.detail">Contour detail</label>
+                    <label class="sub-label" for="svg_detail" data-i18n="step3.detail">Edge detail</label>
                     <span class="slider-value" id="svg-detail-value">7</span>
                   </div>
                   <input type="range" id="svg_detail" name="svg_detail" min="1" max="10" step="1" value="7" />
                   <div class="slider-ends">
-                    <span data-i18n="step3.detail.low">Simpler paths</span>
-                    <span data-i18n="step3.detail.high">Follow fine strokes</span>
+                    <span data-i18n="step3.detail.low">Softer</span>
+                    <span data-i18n="step3.detail.high">Sharper</span>
                   </div>
                 </div>
                 <div class="step-extra" id="svg-palette-wrap" hidden>
                   <div class="slider-head">
-                    <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Palette levels</label>
+                    <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Colors kept</label>
                     <span class="slider-value" id="svg-palette-value">4</span>
                   </div>
                   <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="4" />
                   <div class="slider-ends">
-                    <span id="svg-palette-low" data-i18n="step3.palette.low">2 (B&amp;W)</span>
-                    <span id="svg-palette-high" data-i18n="step3.palette.high">32 (rich)</span>
+                    <span id="svg-palette-low" data-i18n="step3.palette.low">Few</span>
+                    <span id="svg-palette-high" data-i18n="step3.palette.high">Many</span>
                   </div>
                 </div>
               </div>
             </details>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint.logo">
-              Palette 4 keeps one mid-gray for shaded marks; 3 flattens to black/white. Contour detail changes path fidelity — try 4 vs 9.
+              Pick a style above. Open Fine-tune only if the edges or grays need a small tweak.
             </p>
           </div>
         </fieldset>
