@@ -125,52 +125,57 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc" data-i18n="step3.desc">Vectorize the result. Start with a recipe below, then tweak the sliders if needed.</p>
-            <div class="step-extra" id="svg-mode-wrap" hidden>
-              <label class="sub-label" for="svg_mode" data-i18n="step3.mode">Mode</label>
-              <select id="svg_mode" name="svg_mode">
-                <option value="logo" selected data-i18n="step3.mode.logo">Logo — black / white / gray marks</option>
-                <option value="general" data-i18n="step3.mode.general">General — photos &amp; multi-color</option>
-              </select>
-            </div>
+            <p class="step-desc" data-i18n="step3.desc">For a black logo like BAGGERO, leave “Logo B&amp;W” — do not hunt the sliders.</p>
             <div class="step-extra svg-recipes" id="svg-recipes-wrap" hidden>
-              <span class="sub-label" data-i18n="step3.recipes">Start with</span>
+              <span class="sub-label" data-i18n="step3.recipes">Best setting</span>
               <div class="recipe-row" role="group" data-i18n-aria="step3.recipes.aria" aria-label="SVG recipes">
-                <button type="button" class="recipe" data-svg-recipe="logo" data-i18n="step3.recipe.logo">
-                  Logo B&amp;W (recommended)
+                <button type="button" class="recipe recipe-primary" data-svg-recipe="logo" data-i18n="step3.recipe.logo">
+                  Logo B&amp;W — best choice
                 </button>
                 <button type="button" class="recipe" data-svg-recipe="logo-sharp" data-i18n="step3.recipe.logoSharp">
-                  Logo — sharper text
+                  Logo — finer strokes
                 </button>
-                <button type="button" class="recipe" data-svg-recipe="photo" data-i18n="step3.recipe.photo">
-                  Photo / shaded
+                <button type="button" class="recipe recipe-muted" data-svg-recipe="photo" data-i18n="step3.recipe.photo">
+                  Photo only
                 </button>
               </div>
             </div>
-            <div class="step-extra" id="svg-detail-wrap" hidden>
-              <div class="slider-head">
-                <label class="sub-label" for="svg_detail" data-i18n="step3.detail">Contour detail</label>
-                <span class="slider-value" id="svg-detail-value">6</span>
+            <details class="step-extra svg-advanced" id="svg-advanced-wrap" hidden>
+              <summary data-i18n="step3.advanced">Advanced (optional)</summary>
+              <div class="svg-advanced-body">
+                <div class="step-extra" id="svg-mode-wrap" hidden>
+                  <label class="sub-label" for="svg_mode" data-i18n="step3.mode">Mode</label>
+                  <select id="svg_mode" name="svg_mode">
+                    <option value="logo" selected data-i18n="step3.mode.logo">Logo — black / white / gray marks</option>
+                    <option value="general" data-i18n="step3.mode.general">General — photos &amp; multi-color</option>
+                  </select>
+                </div>
+                <div class="step-extra" id="svg-detail-wrap" hidden>
+                  <div class="slider-head">
+                    <label class="sub-label" for="svg_detail" data-i18n="step3.detail">Contour detail</label>
+                    <span class="slider-value" id="svg-detail-value">7</span>
+                  </div>
+                  <input type="range" id="svg_detail" name="svg_detail" min="1" max="10" step="1" value="7" />
+                  <div class="slider-ends">
+                    <span data-i18n="step3.detail.low">Simpler paths</span>
+                    <span data-i18n="step3.detail.high">Follow fine strokes</span>
+                  </div>
+                </div>
+                <div class="step-extra" id="svg-palette-wrap" hidden>
+                  <div class="slider-head">
+                    <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Palette levels</label>
+                    <span class="slider-value" id="svg-palette-value">3</span>
+                  </div>
+                  <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="3" />
+                  <div class="slider-ends">
+                    <span id="svg-palette-low" data-i18n="step3.palette.low">2 (B&amp;W)</span>
+                    <span id="svg-palette-high" data-i18n="step3.palette.high">32 (rich)</span>
+                  </div>
+                </div>
               </div>
-              <input type="range" id="svg_detail" name="svg_detail" min="1" max="10" step="1" value="6" />
-              <div class="slider-ends">
-                <span data-i18n="step3.detail.low">Simpler paths</span>
-                <span data-i18n="step3.detail.high">Follow fine strokes</span>
-              </div>
-            </div>
-            <div class="step-extra" id="svg-palette-wrap" hidden>
-              <div class="slider-head">
-                <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Palette levels</label>
-                <span class="slider-value" id="svg-palette-value">3</span>
-              </div>
-              <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="3" />
-              <div class="slider-ends">
-                <span id="svg-palette-low" data-i18n="step3.palette.low">2 (B&amp;W)</span>
-                <span id="svg-palette-high" data-i18n="step3.palette.high">32 (rich)</span>
-              </div>
-            </div>
+            </details>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint.logo">
-              Click “Logo B&amp;W” first. Detail = how closely paths follow thin letters. Palette = how many tones (Logo max 4).
+              SVG approximates the cutout PNG — it will not match a hand-made brand vector. For BAGGERO stay on Logo B&amp;W.
             </p>
           </div>
         </fieldset>

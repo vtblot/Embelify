@@ -615,6 +615,56 @@ select {
   color: var(--accent);
 }
 
+.recipe.recipe-primary {
+  font-weight: 700;
+}
+
+.recipe.recipe-muted {
+  opacity: 0.72;
+  font-weight: 500;
+}
+
+.svg-advanced {
+  margin-top: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  padding: 0.35rem 0.65rem 0.55rem;
+  background: rgba(8, 18, 14, 0.35);
+}
+
+.svg-advanced > summary {
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted, #9aab9f);
+  list-style: none;
+  padding: 0.25rem 0;
+}
+
+.svg-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.svg-advanced > summary::before {
+  content: "▸ ";
+  color: var(--accent);
+}
+
+.svg-advanced[open] > summary::before {
+  content: "▾ ";
+}
+
+.svg-advanced-body {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.45rem;
+}
+
+.svg-advanced-body .step-extra {
+  margin: 0;
+}
+
 #preview-img,
 .svg-host {
   position: relative;

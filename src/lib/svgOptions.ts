@@ -56,13 +56,14 @@ function detailToTrace(
 > {
   const t = (clamp(detail, 1, 10) - 1) / 9;
   if (mode === "logo") {
-    // detail 5 ≈ old Logo baseline (pathomit~8, ltres~1)
+    // Gentler omit so wordmark stems (B, A, R…) survive at the recommended detail.
+    // detail 7 ≈ pathomit ~3–4, ltres ~0.7 — best default for BAGGERO-like marks.
     return {
-      ltres: lerp(1.6, 0.4, t),
-      qtres: lerp(1.6, 0.4, t),
-      pathomit: Math.round(lerp(12, 2, t)),
-      linefilter: detail <= 5,
-      rightangleenhance: detail <= 7,
+      ltres: lerp(1.4, 0.3, t),
+      qtres: lerp(1.4, 0.3, t),
+      pathomit: Math.round(lerp(10, 1, t)),
+      linefilter: detail <= 4,
+      rightangleenhance: detail <= 8,
     };
   }
   return {
@@ -81,7 +82,7 @@ function detailToTrace(
  * - General: full 2–32 levels for photos / multi-color art.
  */
 export function resolveSvgTraceOptions(
-  controls: SvgSliderControls = { mode: "logo", detail: 6, palette: 3 },
+  controls: SvgSliderControls = { mode: "logo", detail: 7, palette: 3 },
 ): SvgTraceOptions {
   const mode = controls.mode === "general" ? "general" : "logo";
   const detail = clamp(Math.round(controls.detail), 1, 10);
@@ -103,12 +104,12 @@ export function resolveSvgTraceOptions(
       viewbox: true,
     };
     if (palette <= 3) {
-      // Fixed body / white / transparent — stable eyes & letter holes
+      // Pure black body + white features + transparent holes
       base.numberofcolors = 3;
       base.pal = [
-        { r: 28, g: 28, b: 30, a: 255 },
+        { r: 0, g: 0, b: 0, a: 255 },
         { r: 255, g: 255, b: 255, a: 255 },
-        { r: 0, g: 0, b: 0, a: 0 },
+        { r: 0, g: 255, b: 0, a: 0 },
       ];
     } else {
       // 4 levels: allow one mid-gray without averaging away whites
@@ -143,7 +144,7 @@ export function controlsFromLegacy(
 ): SvgSliderControls {
   const colorMap: Record<SvgColors, number> = { few: 3, auto: 12, many: 24 };
   if (style === "logo" || !style) {
-    return { mode: "logo", detail: 6, palette: colorMap[colors ?? "few"] ?? 3 };
+    return { mode: "logo", detail: 7, palette: colorMap[colors ?? "few"] ?? 3 };
   }
   if (style === "clean") {
     return { mode: "general", detail: 3, palette: colorMap[colors ?? "few"] ?? 6 };

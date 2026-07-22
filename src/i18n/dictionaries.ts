@@ -39,6 +39,7 @@ export type Dict = {
   "step3.recipe.logo": string;
   "step3.recipe.logoSharp": string;
   "step3.recipe.photo": string;
+  "step3.advanced": string;
   "step3.detail": string;
   "step3.detail.low": string;
   "step3.detail.high": string;
@@ -146,15 +147,16 @@ export const en: Dict = {
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "Vectorize the result. Start with a recipe below, then tweak the sliders if needed.",
+    "For a black logo like BAGGERO, leave “Logo B&W” — do not hunt the sliders.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — black / white / gray marks",
   "step3.mode.general": "General — photos & multi-color",
-  "step3.recipes": "Start with",
+  "step3.recipes": "Best setting",
   "step3.recipes.aria": "SVG recipes",
-  "step3.recipe.logo": "Logo B&W (recommended)",
-  "step3.recipe.logoSharp": "Logo — sharper text",
-  "step3.recipe.photo": "Photo / shaded",
+  "step3.recipe.logo": "Logo B&W — best choice",
+  "step3.recipe.logoSharp": "Logo — finer strokes",
+  "step3.recipe.photo": "Photo only",
+  "step3.advanced": "Advanced (optional)",
   "step3.detail": "Contour detail",
   "step3.detail.low": "Simpler paths",
   "step3.detail.high": "Follow fine strokes",
@@ -165,9 +167,9 @@ export const en: Dict = {
   "step3.hint":
     "Palette levels = how many tones to keep after posterize (not brand color names). B&W logo: 2–4. Photo: 12–24.",
   "step3.hint.logo":
-    "Click “Logo B&W” first. Detail = how closely paths follow thin letters. Palette = tone count (Logo max 4). Eyes stay white; letter holes stay clear.",
+    "SVG approximates the cutout PNG — it will not match a hand-made brand vector. For BAGGERO stay on Logo B&W.",
   "step3.hint.general":
-    "General keeps shading and many tones. Low detail = cleaner paths; high detail = more nodes. Use 8–16 levels for soft photos.",
+    "Photo mode only — not for flat logos. Soft photos: detail mid, palette 8–16.",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
@@ -277,15 +279,16 @@ export const fr: Dict = {
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Vectorise le résultat. Commencez par une recette ci-dessous, puis ajustez les curseurs si besoin.",
+    "Pour un logo noir comme BAGGERO, laissez « Logo N&B » — inutile de chercher le curseur parfait.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — aplats noir / blanc / gris",
   "step3.mode.general": "Général — photos & multicolore",
-  "step3.recipes": "Pour commencer",
+  "step3.recipes": "Meilleur réglage",
   "step3.recipes.aria": "Recettes SVG",
-  "step3.recipe.logo": "Logo N&B (recommandé)",
-  "step3.recipe.logoSharp": "Logo — texte plus net",
-  "step3.recipe.photo": "Photo / ombré",
+  "step3.recipe.logo": "Logo N&B — meilleur choix",
+  "step3.recipe.logoSharp": "Logo — traits plus fins",
+  "step3.recipe.photo": "Photo uniquement",
+  "step3.advanced": "Réglages avancés (optionnel)",
   "step3.detail": "Détail des contours",
   "step3.detail.low": "Chemins simples",
   "step3.detail.high": "Suit les traits fins",
@@ -296,9 +299,9 @@ export const fr: Dict = {
   "step3.hint":
     "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo N&B : 2–4. Photo : 12–24.",
   "step3.hint.logo":
-    "Cliquez d’abord sur « Logo N&B ». Détail = précision sur les lettres fines. Palette = nombre de tons (max 4 en Logo). Yeux blancs ; trous de lettres vides.",
+    "Le SVG approche le PNG détouré — ce n’est pas un fichier vectoriel de marque. Pour BAGGERO, restez sur Logo N&B.",
   "step3.hint.general":
-    "Général conserve ombres et tons. Peu de détail = chemins plus propres ; beaucoup = plus de nœuds. Photos douces : 8–16 niveaux.",
+    "Mode photo uniquement — pas pour un logo plat. Photos douces : détail moyen, palette 8–16.",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",

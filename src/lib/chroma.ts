@@ -1075,7 +1075,6 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
   let lumaSum = 0;
   // Dark-ink only — white eyes/counters must not skew the body color
   const darkLumas: number[] = [];
-  const darkRgb: Rgb[] = [];
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1088,7 +1087,6 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
       if (L >= 110) continue;
       if (touchesTransparent(data, w, h, x, y, 2)) continue;
       darkLumas.push(L);
-      darkRgb.push([data[i], data[i + 1], data[i + 2]]);
     }
   }
 
@@ -1100,26 +1098,8 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
     return canvas;
   }
 
-  // Darkest quartile of dark ink = true body (ignore lit mid-grays)
-  const order = darkLumas
-    .map((_, i) => i)
-    .sort((a, b) => darkLumas[a] - darkLumas[b]);
-  const q = Math.max(8, Math.floor(order.length * 0.25));
-  let darkR = 0;
-  let darkG = 0;
-  let darkB = 0;
-  for (let k = 0; k < q; k++) {
-    const c = darkRgb[order[k]];
-    darkR += c[0];
-    darkG += c[1];
-    darkB += c[2];
-  }
-  // Match Logo fixed palette body (~28) so thin stems don't fall into "hole" bucket
-  const coreRgb: Rgb = [
-    Math.max(28, Math.min(42, Math.round(darkR / q))),
-    Math.max(28, Math.min(42, Math.round(darkG / q))),
-    Math.max(28, Math.min(42, Math.round(darkB / q))),
-  ];
+  // Pure black body — matches Logo fixed palette #000
+  const coreRgb: Rgb = [0, 0, 0];
 
   // Cream eyes/nose often ~180–245 after Lanczos ×4. Keep vs dark body;
   // size cap rejects large ear fills even if they're bright.

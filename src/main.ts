@@ -63,6 +63,7 @@ const svgPaletteWrap = document.getElementById("svg-palette-wrap") as HTMLElemen
 const svgPaletteValue = document.getElementById("svg-palette-value") as HTMLElement;
 const svgHint = document.getElementById("svg-hint") as HTMLParagraphElement;
 const svgRecipesWrap = document.getElementById("svg-recipes-wrap") as HTMLElement;
+const svgAdvancedWrap = document.getElementById("svg-advanced-wrap") as HTMLElement | null;
 const svgPaletteLow = document.getElementById("svg-palette-low") as HTMLElement;
 const svgPaletteHigh = document.getElementById("svg-palette-high") as HTMLElement;
 const langSelect = document.getElementById("lang-select") as HTMLSelectElement;
@@ -108,8 +109,8 @@ const SVG_RECIPES: Record<
   string,
   { mode: SvgMode; detail: number; palette: number }
 > = {
-  logo: { mode: "logo", detail: 6, palette: 3 },
-  "logo-sharp": { mode: "logo", detail: 8, palette: 3 },
+  logo: { mode: "logo", detail: 7, palette: 3 },
+  "logo-sharp": { mode: "logo", detail: 9, palette: 3 },
   photo: { mode: "general", detail: 7, palette: 16 },
 };
 
@@ -139,6 +140,7 @@ function syncSvgUi() {
   svgPaletteWrap.hidden = !svgOn;
   svgHint.hidden = !svgOn;
   if (svgRecipesWrap) svgRecipesWrap.hidden = !svgOn;
+  if (svgAdvancedWrap) svgAdvancedWrap.hidden = !svgOn;
 
   if (svgOn) {
     // Logo mode: palette max 4 (B&W / gray marks)
@@ -524,6 +526,11 @@ fileInput.addEventListener("change", () => {
 
 upscaleSelect.addEventListener("change", scheduleLiveRun);
 toSvgToggle.addEventListener("change", () => {
+  if (toSvgToggle.checked) {
+    // Always land on the usable Logo path — users were stuck on Photo/General.
+    applySvgRecipe("logo");
+    return;
+  }
   syncSvgUi();
   scheduleLiveRun();
 });

@@ -21,6 +21,7 @@ import {
   type SvgColors,
   type SvgStyle,
 } from "./svgOptions";
+import { polishLogoSvg } from "./svgPolish";
 
 export type UpscaleFactor = 1 | 2 | 4;
 /** auto: fond uni pour logos/aplats, IA pour photos */
@@ -547,14 +548,16 @@ async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Pr
       : `Vectorisation SVG (détail ${controls.detail}, ${trace.numberofcolors} niveaux)…`,
   );
   try {
-    return await rasterToSvgInWorker(canvas, trace);
+    const raw = await rasterToSvgInWorker(canvas, trace);
+    return controls.mode === "logo" ? polishLogoSvg(raw) : raw;
   } catch (err) {
     console.warn("Worker SVG indisponible, fallback main thread:", err);
     const ImageTracer = (await import("imagetracerjs")).default;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) throw new Error("Canvas 2D indisponible.");
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    return ImageTracer.imagedataToSVG(imageData, trace);
+    const raw = ImageTracer.imagedataToSVG(imageData, trace);
+    return controls.mode === "logo" ? polishLogoSvg(raw) : raw;
   }
 }
 
