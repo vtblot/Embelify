@@ -16,6 +16,8 @@ import {
   type CutScope,
   type EdgeTighten,
   type PipelineStep,
+  type SvgColors,
+  type SvgStyle,
   type UpscaleFactor,
 } from "./lib/pipeline";
 import {
@@ -51,6 +53,11 @@ const cutScopeWrap = document.getElementById("cut-scope-wrap") as HTMLElement;
 const bgHint = document.getElementById("bg-hint") as HTMLParagraphElement;
 const upscaleSelect = document.getElementById("upscale") as HTMLSelectElement;
 const toSvgToggle = document.getElementById("to_svg") as HTMLInputElement;
+const svgStyleSelect = document.getElementById("svg_style") as HTMLSelectElement;
+const svgStyleWrap = document.getElementById("svg-style-wrap") as HTMLElement;
+const svgColorsSelect = document.getElementById("svg_colors") as HTMLSelectElement;
+const svgColorsWrap = document.getElementById("svg-colors-wrap") as HTMLElement;
+const svgHint = document.getElementById("svg-hint") as HTMLParagraphElement;
 const langSelect = document.getElementById("lang-select") as HTMLSelectElement;
 const sisterLink = document.getElementById("sister-link") as HTMLAnchorElement;
 
@@ -88,6 +95,13 @@ function syncBgUi() {
   if (rembgOn) {
     bgHint.textContent = t(BG_HINT_KEY[bgModeSelect.value as BgMode] ?? "step2.hint.chroma");
   }
+}
+
+function syncSvgUi() {
+  const svgOn = toSvgToggle.checked;
+  svgStyleWrap.hidden = !svgOn;
+  svgColorsWrap.hidden = !svgOn;
+  svgHint.hidden = !svgOn;
 }
 
 function setStatus(message: string, isError = false) {
@@ -211,6 +225,8 @@ function readOptions() {
     edgeTighten: edgeTightenSelect.value as EdgeTighten,
     cutScope: cutScopeSelect.value as CutScope,
     toSvg: toSvgToggle.checked,
+    svgStyle: svgStyleSelect.value as SvgStyle,
+    svgColors: svgColorsSelect.value as SvgColors,
   };
 }
 
@@ -319,6 +335,7 @@ function scheduleLiveRun() {
 function refreshI18n() {
   applyStaticI18n();
   syncBgUi();
+  syncSvgUi();
   langSelect.value = getLocale();
   if (sisterLink) {
     sisterLink.href = BRAND.spektrografy.url;
@@ -382,7 +399,12 @@ fileInput.addEventListener("change", () => {
 });
 
 upscaleSelect.addEventListener("change", scheduleLiveRun);
-toSvgToggle.addEventListener("change", scheduleLiveRun);
+toSvgToggle.addEventListener("change", () => {
+  syncSvgUi();
+  scheduleLiveRun();
+});
+svgStyleSelect.addEventListener("change", scheduleLiveRun);
+svgColorsSelect.addEventListener("change", scheduleLiveRun);
 
 downloadBtn.addEventListener("click", () => {
   if (!downloadResult()) {

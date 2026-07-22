@@ -30,6 +30,15 @@ export type Dict = {
   "step3.label": string;
   "step3.optional": string;
   "step3.desc": string;
+  "step3.style": string;
+  "step3.style.clean": string;
+  "step3.style.balanced": string;
+  "step3.style.detailed": string;
+  "step3.colors": string;
+  "step3.colors.few": string;
+  "step3.colors.auto": string;
+  "step3.colors.many": string;
+  "step3.hint": string;
   "actions.recompute": string;
   "actions.recompute.hint": string;
   "status.drop": string;
@@ -125,6 +134,16 @@ export const en: Dict = {
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc": "Vectorizes logos / simple shapes. Not suited to photos.",
+  "step3.style": "Style",
+  "step3.style.clean": "Clean — logos, few paths",
+  "step3.style.balanced": "Balanced",
+  "step3.style.detailed": "Detailed — keep fine edges",
+  "step3.colors": "Colors",
+  "step3.colors.few": "Few (4)",
+  "step3.colors.auto": "Auto (8)",
+  "step3.colors.many": "Many (16)",
+  "step3.hint":
+    "Clean + few colors = flatter logo SVG. Turn on transparent background first to avoid tracing crumbs.",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
@@ -232,6 +251,16 @@ export const fr: Dict = {
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc": "Vectorise logos / formes simples. Pas adapté aux photos.",
+  "step3.style": "Style",
+  "step3.style.clean": "Propre — logos, peu de chemins",
+  "step3.style.balanced": "Équilibré",
+  "step3.style.detailed": "Détaillé — garde les fins contours",
+  "step3.colors": "Couleurs",
+  "step3.colors.few": "Peu (4)",
+  "step3.colors.auto": "Auto (8)",
+  "step3.colors.many": "Beaucoup (16)",
+  "step3.hint":
+    "Propre + peu de couleurs = SVG logo plus plat. Activez le fond transparent avant pour éviter de vectoriser les miettes.",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",

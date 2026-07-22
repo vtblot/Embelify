@@ -8,11 +8,17 @@ import {
   type EdgeTighten,
 } from "./chroma";
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
+import {
+  resolveSvgTraceOptions,
+  type SvgColors,
+  type SvgStyle,
+  type SvgTraceOptions,
+} from "./svgOptions";
 
 export type UpscaleFactor = 1 | 2 | 4;
 /** auto: fond uni pour logos/aplats, IA pour photos */
 export type BgMode = "auto" | "chroma" | "ai";
-export type { CutScope, EdgeTighten };
+export type { CutScope, EdgeTighten, SvgColors, SvgStyle };
 
 export type PipelineStep = "source" | "upscale" | "background" | "svg" | "done";
 
@@ -25,6 +31,10 @@ export type PipelineOptions = {
   /** exterior = keep eyes/holes; interior = also clear enclosed bg */
   cutScope?: CutScope;
   toSvg: boolean;
+  /** SVG vectorization style — clean suits logos; detailed keeps more paths. */
+  svgStyle?: SvgStyle;
+  /** SVG palette size. */
+  svgColors?: SvgColors;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
   /** Fired when a step begins (for loading labels). */
@@ -381,7 +391,27 @@ async function removeBackgroundFromCanvas(
   return removeBackgroundAi(canvas, opts);
 }
 
-function rasterToSvgInWorker(canvas: HTMLCanvasElement): Promise<string> {
+/**
+ * Scrub edge crumbs before vectorize — tiny white residues become noisy SVG paths.
+ */
+function prepareCanvasForSvg(
+  canvas: HTMLCanvasElement,
+  style: SvgStyle,
+): HTMLCanvasElement {
+  if (!canvasHasTransparency(canvas)) return canvas;
+  const passes = style === "clean" ? 12 : style === "balanced" ? 8 : 4;
+  const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(canvas, {
+    maxPasses: passes,
+  });
+  if (removed <= 0) return canvas;
+  wipeCanvas(canvas);
+  return scrubbed;
+}
+
+function rasterToSvgInWorker(
+  canvas: HTMLCanvasElement,
+  trace: SvgTraceOptions,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) {
@@ -413,31 +443,30 @@ function rasterToSvgInWorker(canvas: HTMLCanvasElement): Promise<string> {
       reject(event.error ?? new Error("Erreur worker SVG."));
     };
 
-    const payload: SvgWorkerRequest = { width, height, buffer };
+    const payload: SvgWorkerRequest = { width, height, buffer, options: trace };
     worker.postMessage(payload, [buffer]);
   });
 }
 
 async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Promise<string> {
   throwIfAborted(opts.signal);
-  progress(opts, "Vectorisation SVG (worker)…");
+  const style = opts.svgStyle ?? "clean";
+  const colors = opts.svgColors ?? "auto";
+  const trace = resolveSvgTraceOptions(style, colors);
+  canvas = prepareCanvasForSvg(canvas, style);
+  progress(
+    opts,
+    `Vectorisation SVG (${style}, ${trace.numberofcolors} couleurs)…`,
+  );
   try {
-    return await rasterToSvgInWorker(canvas);
+    return await rasterToSvgInWorker(canvas, trace);
   } catch (err) {
     console.warn("Worker SVG indisponible, fallback main thread:", err);
     const ImageTracer = (await import("imagetracerjs")).default;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) throw new Error("Canvas 2D indisponible.");
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    return ImageTracer.imagedataToSVG(imageData, {
-      ltres: 1,
-      qtres: 1,
-      pathomit: 8,
-      colorsampling: 2,
-      numberofcolors: 24,
-      strokewidth: 0,
-      viewbox: true,
-    });
+    return ImageTracer.imagedataToSVG(imageData, trace);
   }
 }
 
