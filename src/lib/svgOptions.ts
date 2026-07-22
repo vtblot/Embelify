@@ -3,12 +3,20 @@ export type SvgStyle = "logo" | "faithful" | "clean" | "balanced" | "detailed";
 /** Palette size for ImageTracer quantization. */
 export type SvgColors = "few" | "auto" | "many";
 
+export type SvgPaletteColor = {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+};
+
 export type SvgTraceOptions = {
   ltres: number;
   qtres: number;
   pathomit: number;
   colorsampling: number;
   numberofcolors: number;
+  colorquantcycles?: number;
   strokewidth: number;
   blurradius: number;
   blurdelta: number;
@@ -16,6 +24,8 @@ export type SvgTraceOptions = {
   viewbox: boolean;
   linefilter: boolean;
   rightangleenhance: boolean;
+  /** Fixed palette — used by Logo style so eyes stay white. */
+  pal?: SvgPaletteColor[];
 };
 
 const COLOR_COUNT: Record<SvgColors, number> = {
@@ -27,10 +37,8 @@ const COLOR_COUNT: Record<SvgColors, number> = {
 /**
  * Map UI presets → ImageTracer knobs.
  *
- * "logo" = default for dark marks with white features (eyes/nose): flatten
- * preprocess + 2–4 color trace. Avoids Faithful+Many banding / false ear fills.
- * "faithful" + many preserves shading (accepts gray bands).
- * "clean" + few posterizes without the enclosed-island flatten.
+ * "logo" = dark mark + white features: flatten preprocess + fixed 3-color pal
+ * (body / white / transparent). Avoids quantization eating cream eyes.
  */
 export function resolveSvgTraceOptions(
   style: SvgStyle = "logo",
@@ -43,9 +51,10 @@ export function resolveSvgTraceOptions(
       ltres: 1,
       qtres: 1,
       pathomit: 8,
-      colorsampling: 2,
-      // Flatten already forces ~2 colors; keep palette tiny so tracer can't invent bands
-      numberofcolors: Math.min(Math.max(numberofcolors, 2), 4),
+      colorsampling: 0,
+      numberofcolors: 3,
+      // Keep fixed pal intact — extra cycles average colors and wash eyes to gray
+      colorquantcycles: 1,
       strokewidth: 0,
       blurradius: 0,
       blurdelta: 20,
@@ -53,6 +62,12 @@ export function resolveSvgTraceOptions(
       viewbox: true,
       linefilter: true,
       rightangleenhance: true,
+      // Fixed pal: dark body, white features, fully transparent bg
+      pal: [
+        { r: 28, g: 28, b: 30, a: 255 },
+        { r: 255, g: 255, b: 255, a: 255 },
+        { r: 0, g: 0, b: 0, a: 0 },
+      ],
     };
   }
 

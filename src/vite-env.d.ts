@@ -9,7 +9,10 @@ interface ImportMeta {
 }
 
 declare module "imagetracerjs" {
-  type ImageTracerOptions = Record<string, string | number | boolean>;
+  type ImageTracerOptions = Record<
+    string,
+    string | number | boolean | Array<Record<string, number>>
+  >;
 
   interface ImageTracerApi {
     imagedataToSVG(imageData: ImageData, options?: ImageTracerOptions): string;

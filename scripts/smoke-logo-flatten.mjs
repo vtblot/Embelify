@@ -94,7 +94,7 @@ const page = await browser.newPage();
 page.on("pageerror", (err) => console.log("PAGEERROR", err.message));
 
 await page.goto("http://127.0.0.1:5173/", { waitUntil: "networkidle" });
-await page.selectOption("#upscale", "1");
+await page.selectOption("#upscale", "4");
 await page.evaluate(() => {
   const rembg = document.getElementById("remove_bg");
   const svg = document.getElementById("to_svg");
