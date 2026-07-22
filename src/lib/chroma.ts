@@ -674,8 +674,9 @@ function dilateMask(mask: Uint8Array, w: number, h: number, radius: number): Uin
 }
 
 /**
- * After a cutout, restore interior holes / destroyed bright details (e.g. white eyes)
- * from the original when scope is "exterior". Exterior transparent stays transparent.
+ * After a cutout, restore interior details from the original when scope is "exterior".
+ * Must run AFTER edge cleanup — otherwise peel/scrub re-destroys white eyes.
+ * Uses a scale-aware seal so upscaled ×2 cracks don't leak eyes into the exterior.
  */
 export function applyCutScope(
   cutout: HTMLCanvasElement,
@@ -698,13 +699,15 @@ export function applyCutScope(
   const c = cImg.data;
   const o = oImg.data;
   const ALPHA_TH = 28;
+  const bg = sampleCorners(o, w, h);
 
-  // Opaque mask, then seal cracks so eye holes don't connect to the exterior
+  // Opaque mask from cutout, sealed wide enough for ×2 upscale slits
   const opaque = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) {
     if (c[i * 4 + 3] >= ALPHA_TH) opaque[i] = 1;
   }
-  const sealed = dilateMask(opaque, w, h, 2);
+  const sealRadius = Math.max(5, Math.round(Math.min(w, h) / 48));
+  const sealed = dilateMask(opaque, w, h, sealRadius);
 
   const exterior = new Uint8Array(w * h);
   const queue = new Int32Array(w * h);
@@ -714,7 +717,7 @@ export function applyCutScope(
   const enq = (x: number, y: number) => {
     const idx = y * w + x;
     if (exterior[idx]) return;
-    if (sealed[idx]) return; // treat sealed matte as wall
+    if (sealed[idx]) return;
     exterior[idx] = 1;
     queue[qt++] = idx;
   };
@@ -745,21 +748,27 @@ export function applyCutScope(
     }
 
     const oA = o[j + 3];
-    const cA = c[j + 3];
-    if (oA < 16) continue;
+    if (oA < 16) {
+      // Nothing in original here — keep transparent
+      c[j + 3] = 0;
+      continue;
+    }
 
     const oL = luma(o[j], o[j + 1], o[j + 2]);
-    const cL = luma(c[j], c[j + 1], c[j + 2]);
-
-    // Interior of sealed silhouette: restore holes + lost bright details (white eyes)
-    const isHole = cA < ALPHA_TH;
-    const lostBright = oA > 200 && oL > 170 && (cA < 200 || cL < oL - 50);
-    if (isHole || lostBright) {
-      c[j] = o[j];
-      c[j + 1] = o[j + 1];
-      c[j + 2] = o[j + 2];
-      c[j + 3] = 255;
+    // Don't pull original background back into sealed edge cracks
+    const origIsBg =
+      dist2(o[j], o[j + 1], o[j + 2], bg) <= HARD_DIST + 10 && oL < 70;
+    if (origIsBg) {
+      c[j + 3] = 0;
+      continue;
     }
+
+    // Interior of silhouette: always restore subject pixels from original
+    // (eyes, ear fills, gradients — whatever AI punched as holes)
+    c[j] = o[j];
+    c[j + 1] = o[j + 1];
+    c[j + 2] = o[j + 2];
+    c[j + 3] = 255;
   }
 
   const out = document.createElement("canvas");

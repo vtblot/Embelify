@@ -297,14 +297,8 @@ async function removeBackgroundAi(
   let raw = bitmapToCanvas(bitmap);
   bitmap.close();
 
-  if (scope === "exterior") {
-    progress(opts, "Contours extérieurs — restauration des détails intérieurs…");
-    const restored = applyCutScope(raw, original, "exterior");
-    wipeCanvas(raw);
-    raw = restored;
-  }
-  wipeCanvas(original);
-
+  // Edge cleanup FIRST (peel/scrub). Exterior restore MUST be last —
+  // otherwise Tighter peel re-deletes restored white eyes / ear fills.
   if (logoLike || edge === "tight") {
     const cleaned = cleanupCutoutEdges(raw, edge, null, {
       onResidue: (n) =>
@@ -314,8 +308,16 @@ async function removeBackgroundAi(
         ),
     });
     wipeCanvas(raw);
-    return cleaned;
+    raw = cleaned;
   }
+
+  if (scope === "exterior") {
+    progress(opts, "Contours extérieurs — restauration des détails intérieurs…");
+    const restored = applyCutScope(raw, original, "exterior");
+    wipeCanvas(raw);
+    raw = restored;
+  }
+  wipeCanvas(original);
   return raw;
 }
 

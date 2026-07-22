@@ -115,7 +115,7 @@ export const en: Dict = {
   "step2.ai": "Photo — cut out a person / object",
   "step2.hint.chroma": "Best for logos / flat graphics: removes a single background color (often black).",
   "step2.hint.auto": "Picks for you: solid color for a logo, subject cutout for a photo.",
-  "step2.hint.ai": "For photos: isolates a person or object. Not suited to flat logos.",
+  "step2.hint.ai": "For photos: isolates a person or object. Not suited to flat logos. Exterior only restores eyes from the original.",
   "step2.edges": "Edges",
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Tighter — crop ~5px fringe / arcs",
@@ -222,7 +222,7 @@ export const fr: Dict = {
   "step2.hint.auto":
     "Choisit tout seul : fond uni pour un logo, découpe sujet pour une photo.",
   "step2.hint.ai":
-    "Pour les photos : isole une personne ou un objet. Pas adapté aux logos plats.",
+    "Pour les photos : isole une personne ou un objet. Pas adapté aux logos plats. « Extérieur seul » restaure les yeux depuis l’original.",
   "step2.edges": "Bords",
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Serré — coupe ~5px de halo / arcs",
