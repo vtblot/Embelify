@@ -19,20 +19,22 @@ export type SvgTraceOptions = {
 };
 
 const COLOR_COUNT: Record<SvgColors, number> = {
-  few: 4,
-  auto: 8,
+  // 4 was too low with transparency (palette slots eaten by empty bg) — wiped logos.
+  few: 6,
+  auto: 10,
   many: 16,
 };
 
 /**
  * Map UI presets → ImageTracer knobs.
- * Default "clean" favors logos: fewer colors, omit tiny paths, light pre-blur.
+ * Clean favors logos: enough palette slots (few was 4 + pathomit 36 → empty SVG),
+ * modest pathomit, no pre-blur.
  */
 export function resolveSvgTraceOptions(
   style: SvgStyle = "clean",
   colors: SvgColors = "auto",
 ): SvgTraceOptions {
-  const numberofcolors = COLOR_COUNT[colors] ?? 8;
+  const numberofcolors = COLOR_COUNT[colors] ?? 10;
 
   if (style === "detailed") {
     return {
@@ -55,7 +57,7 @@ export function resolveSvgTraceOptions(
     return {
       ltres: 1,
       qtres: 1,
-      pathomit: 12,
+      pathomit: colors === "few" ? 8 : 12,
       colorsampling: 2,
       numberofcolors,
       strokewidth: 0,
@@ -68,13 +70,14 @@ export function resolveSvgTraceOptions(
     };
   }
 
-  // clean — logos: no pre-blur (blur invents a gray halo path), omit crumbs
+  // clean — logos: keep pathomit low when colors are few (high omit erased shapes)
+  const pathomit = colors === "few" ? 8 : colors === "auto" ? 14 : 20;
   return {
-    ltres: 1.5,
-    qtres: 1.5,
-    pathomit: 36,
+    ltres: 1.2,
+    qtres: 1.2,
+    pathomit,
     colorsampling: 2,
-    numberofcolors: Math.min(numberofcolors, 8),
+    numberofcolors: Math.min(numberofcolors, 10),
     strokewidth: 0,
     blurradius: 0,
     blurdelta: 20,

@@ -139,8 +139,8 @@ export const en: Dict = {
   "step3.style.balanced": "Balanced",
   "step3.style.detailed": "Detailed — keep fine edges",
   "step3.colors": "Colors",
-  "step3.colors.few": "Few (4)",
-  "step3.colors.auto": "Auto (8)",
+  "step3.colors.few": "Few (6)",
+  "step3.colors.auto": "Auto (10)",
   "step3.colors.many": "Many (16)",
   "step3.hint":
     "Clean + few colors = flatter logo SVG. Turn on transparent background first to avoid tracing crumbs.",
@@ -256,8 +256,8 @@ export const fr: Dict = {
   "step3.style.balanced": "Équilibré",
   "step3.style.detailed": "Détaillé — garde les fins contours",
   "step3.colors": "Couleurs",
-  "step3.colors.few": "Peu (4)",
-  "step3.colors.auto": "Auto (8)",
+  "step3.colors.few": "Peu (6)",
+  "step3.colors.auto": "Auto (10)",
   "step3.colors.many": "Beaucoup (16)",
   "step3.hint":
     "Propre + peu de couleurs = SVG logo plus plat. Activez le fond transparent avant pour éviter de vectoriser les miettes.",
