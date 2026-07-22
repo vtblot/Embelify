@@ -278,7 +278,7 @@ export const fr: Dict = {
   "step3.hint":
     "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo N&B : 2–4. Photo : 12–24.",
   "step3.hint.logo":
-    "Logo aplatit en sombre + blancs fermés (yeux, lettres). Palette plafonnée à 4. Montez le détail pour des contours plus nets.",
+    "Logo aplatit en encre sombre + yeux blancs (trous de lettres restent vides). Palette plafonnée à 4. Détail moyen pour le texte fin ; montez pour des contours plus nets.",
   "step3.hint.general":
     "Général conserve ombres et tons. Peu de détail = chemins plus propres ; beaucoup = plus de nœuds. Photos douces : 8–16 niveaux.",
   "actions.recompute": "Recalculer",
