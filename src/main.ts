@@ -409,8 +409,12 @@ function refreshI18n() {
   }
   const companyMark = document.getElementById("company-mark") as HTMLImageElement | null;
   if (companyMark) {
-    companyMark.src = BRAND.baggero.markSrc;
+    companyMark.src = BRAND.baggero.logoSrc;
     companyMark.alt = BRAND.baggero.name;
+    companyMark.onerror = () => {
+      companyMark.onerror = null;
+      companyMark.src = BRAND.baggero.markSrc;
+    };
   }
   // If idle with default status, refresh it
   if (!getSourceFile() && !fileInput.files?.[0] && !statusEl.classList.contains("is-error")) {

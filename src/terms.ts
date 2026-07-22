@@ -19,8 +19,12 @@ function boot() {
   }
   const companyMark = document.getElementById("company-mark") as HTMLImageElement | null;
   if (companyMark) {
-    companyMark.src = BRAND.baggero.markSrc;
+    companyMark.src = BRAND.baggero.logoSrc;
     companyMark.alt = BRAND.baggero.name;
+    companyMark.onerror = () => {
+      companyMark.onerror = null;
+      companyMark.src = BRAND.baggero.markSrc;
+    };
   }
   applyStaticI18n();
 }

@@ -14,6 +14,8 @@ export const BRAND = {
   baggero: {
     name: "Baggero",
     url: baggeroUrl,
+    /** Prefer official raster lockup; SVG mark is a fallback only */
+    logoSrc: "/baggero-logo.png",
     markSrc: "/baggero-mark.svg",
   },
   /** Sister product — same company, separate product & domain */

@@ -715,8 +715,11 @@ select {
 
 .company-mark {
   flex: 0 0 auto;
-  width: 28px;
+  width: auto;
   height: 28px;
+  max-width: min(160px, 42vw);
+  object-fit: contain;
+  object-position: left center;
   display: block;
 }
 
