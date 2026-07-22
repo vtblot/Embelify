@@ -56,7 +56,7 @@ function writeCatLogo(path) {
       if (eyeL || eyeR || nose) {
         r = g = b = 255;
       } else if (falseEar) {
-        r = g = b = 185; // off-white ear fill — must NOT survive logo flatten
+        r = g = b = 230; // bright off-white ear fill — must NOT survive as a "feature"
       } else if (faceBand) {
         r = g = b = 95; // mid-gray banding — must snap to dark
       } else if (inHead || inEarL || inEarR) {

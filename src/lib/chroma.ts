@@ -1119,9 +1119,9 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
     Math.max(18, Math.round(darkB / q)),
   ];
 
-  // Off-white ear AA sits ~140–190; true logo whites (eyes/nose) are ≥200
-  const FEATURE_HI = 200;
-  const FEATURE_LO = Math.max(155, Math.min(190, coreMean + 95));
+  // Off-white ear AA / false fills sit ~140–210; true logo whites (eyes/nose) are ≥220
+  const FEATURE_HI = 220;
+  const FEATURE_LO = Math.max(170, Math.min(200, coreMean + 100));
 
   // Label bright candidates; keep only components fully enclosed by dark body
   const brightLabel = new Int32Array(w * h);
@@ -1175,8 +1175,9 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
         }
       }
 
-      // Eyes/nose are small enclosed whites; reject fringe crumbs and huge fills
-      const maxFeature = Math.max(80, Math.floor(opaqueN * 0.12));
+      // Eyes/nose are small enclosed whites; reject fringe crumbs and ear-sized fills
+      // (0.12 let a large inner-ear triangle pass as a "feature")
+      const maxFeature = Math.max(48, Math.floor(opaqueN * 0.035));
       if (!touchesClear && size >= 4 && size <= maxFeature) {
         keepLabels.add(nextLabel);
       }
