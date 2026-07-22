@@ -33,13 +33,16 @@ function writeResidueLogo(path) {
       const fx = x - 48;
       const fy = y - 138;
       const residue = fx * fx + fy * fy <= 7 * 7 && !inHead;
+      // Two 1px white ear-tip crumbs (the remaining BAGGERO issue)
+      const tipL = x === 55 && y === 48;
+      const tipR = x === 125 && y === 48;
       let r = 0;
       let g = 0;
       let b = 0;
       if (inHead) {
         // Must be > SOFT_DIST from black bg or soft-fringe+harden eats the body
         r = g = b = 80;
-      } else if (residue) {
+      } else if (residue || tipL || tipR) {
         r = g = b = 220; // white crumb the keyer "missed"
       }
       raw[i] = r;
@@ -110,6 +113,7 @@ const stats = await page.evaluate(async () => {
   let residueZone = 0;
   let headOpaque = 0;
   let lightEdge = 0;
+  let tipSpecks = 0;
   for (let y = 0; y < c.height; y++) {
     for (let x = 0; x < c.width; x++) {
       const i = (y * c.width + x) * 4;
@@ -121,6 +125,9 @@ const stats = await page.evaluate(async () => {
       const hx = x - 90;
       const hy = y - 90;
       if (hx * hx + hy * hy <= 30 * 30 && a > 200) headOpaque += 1;
+      if ((x === 55 && y === 48) || (x === 125 && y === 48)) {
+        if (a > 16 && L > 150) tipSpecks += 1;
+      }
       if (a > 200 && L > 150) {
         let touches = false;
         for (let dy = -1; dy <= 1 && !touches; dy++) {
@@ -141,12 +148,13 @@ const stats = await page.evaluate(async () => {
       }
     }
   }
-  return { residueZone, headOpaque, lightEdge };
+  return { residueZone, headOpaque, lightEdge, tipSpecks };
 });
 
 console.log("stats", stats);
 if (stats.headOpaque < 400) throw new Error("head removed");
 if (stats.residueZone > 5) throw new Error("white residue not scrubbed: " + stats.residueZone);
+if (stats.tipSpecks > 0) throw new Error("ear tip white specks remain: " + stats.tipSpecks);
 if (stats.lightEdge > 20) throw new Error("light edge residue remains: " + stats.lightEdge);
 console.log("RESIDUE_SCRUB_OK");
 await browser.close();
