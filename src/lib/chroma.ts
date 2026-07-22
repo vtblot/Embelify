@@ -1180,9 +1180,10 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
   for (let i = 0; i < w * h; i++) {
     const j = i * 4;
     if (data[j + 3] < 16 || punchClear.has(brightLabel[i])) {
-      // Sentinel RGB on clear pixels — keeps dark body out of the tracer's "hole" bucket
+      // Keep RGB at 0 — browsers zero RGB on a=0 anyway. Logo SVG palette
+      // uses {0,0,0,a:0} so these pixels stay in the hole bucket (not black).
       data[j] = 0;
-      data[j + 1] = 255;
+      data[j + 1] = 0;
       data[j + 2] = 0;
       data[j + 3] = 0;
       continue;

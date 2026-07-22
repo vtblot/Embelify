@@ -104,12 +104,15 @@ export function resolveSvgTraceOptions(
       viewbox: true,
     };
     if (palette <= 3) {
-      // Pure black body + white features + transparent holes
+      // Transparent MUST be {0,0,0,a:0}. Canvas getImageData zeros RGB on a=0
+      // pixels, so a green "sentinel" never survives — and (0,0,0,0) is then
+      // equidistant to black (a:255) vs green (a:0), so ImageTracer picks black
+      // first → full-canvas black slab with only white eyes cut out.
       base.numberofcolors = 3;
       base.pal = [
         { r: 0, g: 0, b: 0, a: 255 },
         { r: 255, g: 255, b: 255, a: 255 },
-        { r: 0, g: 255, b: 0, a: 0 },
+        { r: 0, g: 0, b: 0, a: 0 },
       ];
     } else {
       // 4 levels: allow one mid-gray without averaging away whites

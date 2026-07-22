@@ -1,7 +1,7 @@
 /**
  * Post-process ImageTracer SVG for Logo mode:
- * snap near-black / near-white fills to pure brand tones so the download
- * looks like a flat mark instead of muddy mid-grays.
+ * snap near-black / near-white fills to pure brand tones, and drop
+ * zero-opacity hole-bucket paths ImageTracer emits for transparent pixels.
  */
 
 function parseRgb(fill: string): { r: number; g: number; b: number } | null {
@@ -32,13 +32,18 @@ function snapFillColor(fill: string): string {
   const L = luma(c.r, c.g, c.b);
   if (L <= 90) return "#000000";
   if (L >= 200) return "#ffffff";
-  // Mid tones rare in Logo flatten — leave alone (gray logos with palette 4)
   return fill;
 }
 
+function pathOpacity(tag: string): number {
+  const m = tag.match(/\bopacity\s*=\s*["']([^"']+)["']/i);
+  if (!m) return 1;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : 1;
+}
+
 /**
- * Rewrite fill attributes / inline style fills toward pure black & white.
- * Safe no-op for SVGs that already use #000 / #fff.
+ * Rewrite fill attributes toward pure black & white; strip invisible hole paths.
  */
 export function polishLogoSvg(svg: string): string {
   if (!svg || !svg.includes("<")) return svg;
@@ -51,11 +56,12 @@ export function polishLogoSvg(svg: string): string {
     return `fill:${snapFillColor(String(value).trim())}`;
   });
 
-  // Drop zero-opacity decoy paths ImageTracer sometimes emits for the hole bucket
-  out = out.replace(
-    /<path\b[^>]*\bfill\s*=\s*["'](?:none|transparent)["'][^>]*\/?>/gi,
-    "",
-  );
+  // Drop zero-opacity / none hole-bucket paths (transparent palette layer)
+  out = out.replace(/<path\b[^>]*>/gi, (tag) => {
+    if (/\bfill\s*=\s*["'](?:none|transparent)["']/i.test(tag)) return "";
+    if (pathOpacity(tag) <= 0.01) return "";
+    return tag;
+  });
 
   return out;
 }
