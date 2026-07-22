@@ -49,8 +49,10 @@ export type PipelineResult =
   | { kind: "png"; blob: Blob }
   | { kind: "svg"; blob: Blob; svg: string };
 
-/** Soft cap — keeps WebGL / WASM memory under control. */
+/** Soft cap — keeps WebGL / WASM memory under control when upscaling / AI. */
 const MAX_INPUT_EDGE = 2048;
+/** Absolute ceiling when keeping native size (upscale off). */
+const MAX_NATIVE_EDGE = 8192;
 const MAX_OUTPUT_PIXELS = 12_000_000;
 
 type UpscalerInstance = {
@@ -120,14 +122,44 @@ async function canvasToBlob(
   });
 }
 
-/** Downscale huge inputs before the heavy models run. */
-async function normalizeInput(file: Blob, opts: PipelineOptions): Promise<HTMLCanvasElement> {
+function resizeCanvas(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+): HTMLCanvasElement {
+  if (canvas.width === width && canvas.height === height) return canvas;
+  const out = document.createElement("canvas");
+  out.width = Math.max(1, width);
+  out.height = Math.max(1, height);
+  const ctx = out.getContext("2d", { alpha: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(canvas, 0, 0, out.width, out.height);
+  wipeCanvas(canvas);
+  return out;
+}
+
+/**
+ * Decode input. When upscale is Off, keep native pixel size (export matches
+ * source). Only soft-cap extreme images; AI rembg may still downscale later.
+ */
+async function normalizeInput(
+  file: Blob,
+  opts: PipelineOptions,
+): Promise<{ canvas: HTMLCanvasElement; nativeWidth: number; nativeHeight: number }> {
   progress(opts, "Lecture de l’image…");
   let bitmap = await createImageBitmap(file);
+  const nativeWidth = bitmap.width;
+  const nativeHeight = bitmap.height;
   const maxEdge = Math.max(bitmap.width, bitmap.height);
 
-  if (maxEdge > MAX_INPUT_EDGE) {
-    const scale = MAX_INPUT_EDGE / maxEdge;
+  // Keep source size when not upscaling (user wants same download dimensions).
+  // Still guard against pathological multi‑MP files.
+  const cap = opts.upscale === 1 ? MAX_NATIVE_EDGE : MAX_INPUT_EDGE;
+
+  if (maxEdge > cap) {
+    const scale = cap / maxEdge;
     progress(
       opts,
       `Image large (${bitmap.width}×${bitmap.height}) — pré-réduction pour la perf…`,
@@ -143,7 +175,7 @@ async function normalizeInput(file: Blob, opts: PipelineOptions): Promise<HTMLCa
 
   const canvas = bitmapToCanvas(bitmap);
   bitmap.close();
-  return canvas;
+  return { canvas, nativeWidth, nativeHeight };
 }
 
 function lanczosUpscale(canvas: HTMLCanvasElement, factor: number): HTMLCanvasElement {
@@ -390,6 +422,25 @@ async function removeBackgroundFromCanvas(
     return out;
   }
 
+  // AI on huge natives: process at MAX_INPUT_EDGE then restore pixel size
+  const maxEdge = Math.max(canvas.width, canvas.height);
+  if (maxEdge > MAX_INPUT_EDGE) {
+    const scale = MAX_INPUT_EDGE / maxEdge;
+    const tw = Math.max(1, Math.round(canvas.width * scale));
+    const th = Math.max(1, Math.round(canvas.height * scale));
+    const nativeW = canvas.width;
+    const nativeH = canvas.height;
+    progress(
+      opts,
+      `Détourage IA sur ${tw}×${th}, puis restauration ${nativeW}×${nativeH}…`,
+    );
+    const small = resizeCanvas(cloneCanvas(canvas), tw, th);
+    const cut = await removeBackgroundAi(small, opts);
+    wipeCanvas(small);
+    wipeCanvas(canvas);
+    return resizeCanvas(cut, nativeW, nativeH);
+  }
+
   return removeBackgroundAi(canvas, opts);
 }
 
@@ -523,7 +574,9 @@ export async function runPipeline(
   }
 
   emitStepStart(opts, "source");
-  let canvas = await normalizeInput(file, opts);
+  const normalized = await normalizeInput(file, opts);
+  let canvas = normalized.canvas;
+  const { nativeWidth, nativeHeight } = normalized;
   throwIfAborted(opts.signal);
   await emitStep(opts, "source", canvas);
 
@@ -541,7 +594,6 @@ export async function runPipeline(
       emitStepStart(opts, "upscale");
       canvas = await upscaleCanvas(canvas, opts.upscale, opts);
       throwIfAborted(opts.signal);
-      // Final scrub after upscale — Lanczos can still soften ear tips to light crumbs
       // Final scrub after upscale — Lanczos can still soften ear tips to light crumbs.
       // Skip aggressive scrub when Logo SVG follows: peel was wiping cream eyes.
       if (opts.removeBg && !(opts.toSvg && (opts.svgStyle ?? "logo") === "logo")) {
@@ -568,6 +620,18 @@ export async function runPipeline(
       wipeCanvas(canvas);
       progress(opts, "Terminé.");
       return { kind: "svg", blob, svg };
+    }
+
+    // No upscale + raster export → match source pixel size exactly
+    if (
+      opts.upscale === 1 &&
+      (canvas.width !== nativeWidth || canvas.height !== nativeHeight)
+    ) {
+      progress(
+        opts,
+        `Restauration taille source (${nativeWidth}×${nativeHeight})…`,
+      );
+      canvas = resizeCanvas(canvas, nativeWidth, nativeHeight);
     }
 
     emitStepStart(opts, "done");
