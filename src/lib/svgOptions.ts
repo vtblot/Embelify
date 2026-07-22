@@ -68,15 +68,15 @@ export function resolveSvgTraceOptions(
     };
   }
 
-  // clean — default for logos / flat marks
+  // clean — logos: no pre-blur (blur invents a gray halo path), omit crumbs
   return {
     ltres: 1.5,
     qtres: 1.5,
-    pathomit: 28,
+    pathomit: 36,
     colorsampling: 2,
     numberofcolors: Math.min(numberofcolors, 8),
     strokewidth: 0,
-    blurradius: 1,
+    blurradius: 0,
     blurdelta: 20,
     scale: 1,
     viewbox: true,

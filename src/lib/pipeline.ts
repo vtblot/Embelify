@@ -1,6 +1,7 @@
 import {
   applyCutScope,
   cleanupCutoutEdges,
+  hardenRasterForSvg,
   looksLikeFlatGraphic,
   removeSolidBackground,
   scrubMismatchedEdgeColors,
@@ -392,20 +393,16 @@ async function removeBackgroundFromCanvas(
 }
 
 /**
- * Scrub edge crumbs before vectorize — tiny white residues become noisy SVG paths.
+ * Scrub + harden matte before vectorize — AA gray rims become noisy SVG halos.
  */
 function prepareCanvasForSvg(
   canvas: HTMLCanvasElement,
   style: SvgStyle,
 ): HTMLCanvasElement {
   if (!canvasHasTransparency(canvas)) return canvas;
-  const passes = style === "clean" ? 12 : style === "balanced" ? 8 : 4;
-  const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(canvas, {
-    maxPasses: passes,
-  });
-  if (removed <= 0) return canvas;
-  wipeCanvas(canvas);
-  return scrubbed;
+  const hardened = hardenRasterForSvg(canvas, style);
+  if (hardened !== canvas) wipeCanvas(canvas);
+  return hardened;
 }
 
 function rasterToSvgInWorker(
