@@ -83,6 +83,7 @@ export type Dict = {
   "badge.done.ready": string;
   "footer.privacy": string;
   "footer.terms": string;
+  "footer.company": string;
   "footer.sister": string;
   "footer.lang": string;
   "sister.blurb": string;
@@ -196,16 +197,17 @@ export const en: Dict = {
   "badge.done.ready": "Ready to download",
   "footer.privacy": "No user storage · processing 100% in your browser",
   "footer.terms": "Terms of use",
-  "footer.sister": "Also from us",
+  "footer.company": "Embelify is a Baggero tool",
+  "footer.sister": "Also",
   "footer.lang": "Language",
-  "sister.blurb": "Another tool from the same company — separate product & domain.",
+  "sister.blurb": "Same company as Spektrografy — separate product & domain.",
   "terms.title": "Embelify — Terms of use",
   "terms.back": "← Back to Embelify",
   "terms.h1": "Terms of use",
   "terms.updated": "Last updated: July 17, 2026",
   "terms.s1.h": "1. Service",
   "terms.s1.p":
-    "Embelify is a browser-based image tool (upscale, background removal, SVG). Processing runs locally on your device. Embelify is operated by the same company as Spektrografy; each product has its own domain and purpose.",
+    "Embelify is a browser-based image tool (upscale, background removal, SVG) from Baggero. Processing runs locally on your device. Spektrografy is another Baggero product; each has its own domain and purpose.",
   "terms.s2.h": "2. No upload / no storage",
   "terms.s2.p":
     "Images are not uploaded to our servers for processing. Results are delivered by download. Closing the tab clears in-session assets. Browser caches for AI models may remain on your device.",
@@ -220,10 +222,10 @@ export const en: Dict = {
     "Paid plans, accounts, or credits may be introduced later. Separate commercial terms will apply and will be shown before purchase.",
   "terms.s6.h": "6. Sister products",
   "terms.s6.p":
-    "Links to Spektrografy or other sister tools are provided for convenience. Each product has its own terms and privacy policy.",
+    "Links to Spektrografy or other Baggero tools are provided for convenience. Each product has its own terms and privacy policy.",
   "terms.s7.h": "7. Contact",
   "terms.s7.p":
-    "For questions about these terms, contact the operator via the Spektrografy / Embelify company channels published on the product sites.",
+    "For questions about these terms, contact Baggero via the channels published on the Embelify / Spektrografy product sites.",
   "workspace.aria": "Workspace",
 };
 
@@ -321,17 +323,18 @@ export const fr: Dict = {
   "badge.done.ready": "Prêt à télécharger",
   "footer.privacy": "Aucun stockage utilisateur · traitement 100 % dans votre navigateur",
   "footer.terms": "CGU",
-  "footer.sister": "Aussi de notre part",
+  "footer.company": "Embelify est un outil Baggero",
+  "footer.sister": "Aussi",
   "footer.lang": "Langue",
   "sister.blurb":
-    "Un autre outil de la même entreprise — produit et domaine distincts.",
+    "Même entreprise que Spektrografy — produit et domaine distincts.",
   "terms.title": "Embelify — Conditions générales d’utilisation",
   "terms.back": "← Retour à Embelify",
   "terms.h1": "Conditions générales d’utilisation",
   "terms.updated": "Dernière mise à jour : 17 juillet 2026",
   "terms.s1.h": "1. Service",
   "terms.s1.p":
-    "Embelify est un outil d’image dans le navigateur (upscale, fond transparent, SVG). Le traitement s’exécute localement sur votre appareil. Embelify est opéré par la même entreprise que Spektrografy ; chaque produit a son propre domaine et sa propre finalité.",
+    "Embelify est un outil d’image dans le navigateur (upscale, fond transparent, SVG) édité par Baggero. Le traitement s’exécute localement sur votre appareil. Spektrografy est un autre produit Baggero ; chaque produit a son propre domaine et sa propre finalité.",
   "terms.s2.h": "2. Pas d’envoi / pas de stockage",
   "terms.s2.p":
     "Les images ne sont pas envoyées sur nos serveurs pour traitement. Les résultats sont livrés par téléchargement. Fermer l’onglet efface les assets de session. Le cache navigateur des modèles IA peut rester sur votre appareil.",
@@ -346,9 +349,9 @@ export const fr: Dict = {
     "Des offres payantes, comptes ou crédits pourront être ajoutés plus tard. Des conditions commerciales distinctes s’appliqueront et seront présentées avant tout achat.",
   "terms.s6.h": "6. Produits sœurs",
   "terms.s6.p":
-    "Les liens vers Spektrografy ou d’autres outils sœurs sont fournis pour information. Chaque produit a ses propres CGU et politique de confidentialité.",
+    "Les liens vers Spektrografy ou d’autres outils Baggero sont fournis pour information. Chaque produit a ses propres CGU et politique de confidentialité.",
   "terms.s7.h": "7. Contact",
   "terms.s7.p":
-    "Pour toute question relative aux présentes CGU, contactez l’opérateur via les canaux Spektrografy / Embelify indiqués sur les sites produits.",
+    "Pour toute question relative aux présentes CGU, contactez Baggero via les canaux indiqués sur les sites Embelify / Spektrografy.",
   "workspace.aria": "Zone de travail",
 };

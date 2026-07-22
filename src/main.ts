@@ -407,6 +407,11 @@ function refreshI18n() {
     sisterLink.href = BRAND.spektrografy.url;
     sisterLink.textContent = BRAND.spektrografy.name;
   }
+  const companyMark = document.getElementById("company-mark") as HTMLImageElement | null;
+  if (companyMark) {
+    companyMark.src = BRAND.baggero.markSrc;
+    companyMark.alt = BRAND.baggero.name;
+  }
   // If idle with default status, refresh it
   if (!getSourceFile() && !fileInput.files?.[0] && !statusEl.classList.contains("is-error")) {
     setStatus(t("status.drop"));

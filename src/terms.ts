@@ -17,6 +17,11 @@ function boot() {
     sister.href = BRAND.spektrografy.url;
     sister.textContent = BRAND.spektrografy.name;
   }
+  const companyMark = document.getElementById("company-mark") as HTMLImageElement | null;
+  if (companyMark) {
+    companyMark.src = BRAND.baggero.markSrc;
+    companyMark.alt = BRAND.baggero.name;
+  }
   applyStaticI18n();
 }
 

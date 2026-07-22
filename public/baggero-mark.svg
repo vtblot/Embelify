@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Baggero">
+  <path
+    fill="#e8ff6b"
+    fill-rule="evenodd"
+    d="M12 22 L20 4 L28 20 L32 18 L36 20 L44 4 L52 22
+       C58 30 58 46 48 54 C40 60 24 60 16 54 C6 46 6 30 12 22 Z
+       M21 34 A4.4 2.8 -18 1 1 28 34 A4.4 2.8 -18 1 1 21 34 Z
+       M36 34 A4.4 2.8 18 1 1 43 34 A4.4 2.8 18 1 1 36 34 Z
+       M32 39.5 L29.2 45.2 L34.8 45.2 Z"
+  />
+</svg>

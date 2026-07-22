@@ -702,13 +702,43 @@ select {
 .sister {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--line);
 }
 
+.company-cred {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.company-mark {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.company-line {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--mist);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
+}
+
+.company-sep {
+  opacity: 0.45;
+}
+
 .sister-label {
-  opacity: 0.9 !important;
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--mist);
+  opacity: 0.9;
 }
 
 .legal-page .legal {

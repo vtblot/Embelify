@@ -1,12 +1,22 @@
-/** Sister products & brand links — override with VITE_SPEKTROGRAFY_URL if needed. */
+/** Sister products & brand links — override with VITE_*_URL if needed. */
 const spektrografyUrl =
   (import.meta.env.VITE_SPEKTROGRAFY_URL as string | undefined)?.trim() ||
   "https://spektrografy.com";
 
+const baggeroUrl =
+  (import.meta.env.VITE_BAGGERO_URL as string | undefined)?.trim() ||
+  "";
+
 export const BRAND = {
   name: "Embelify",
-  company: "Spektrografy",
-  /** Primary sister product — same company, separate product & domain */
+  /** Operating company */
+  company: "Baggero",
+  baggero: {
+    name: "Baggero",
+    url: baggeroUrl,
+    markSrc: "/baggero-mark.svg",
+  },
+  /** Sister product — same company, separate product & domain */
   spektrografy: {
     name: "Spektrografy",
     url: spektrografyUrl,
