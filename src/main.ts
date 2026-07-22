@@ -1,4 +1,3 @@
-import "./styles.css";
 import { BRAND } from "./brand";
 import {
   applyStaticI18n,
