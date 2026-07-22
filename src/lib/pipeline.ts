@@ -477,10 +477,11 @@ async function removeBackgroundFromCanvas(
 function prepareCanvasForSvg(
   canvas: HTMLCanvasElement,
   mode: SvgMode,
+  palette = 3,
 ): HTMLCanvasElement {
   if (!canvasHasTransparency(canvas)) return canvas;
   if (mode === "logo") {
-    const flat = flattenLogoForSvg(canvas);
+    const flat = flattenLogoForSvg(canvas, { keepGray: palette >= 4 });
     if (flat !== canvas) wipeCanvas(canvas);
     return flat;
   }
@@ -540,7 +541,7 @@ async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Pr
         }
       : controlsFromLegacy(opts.svgStyle, opts.svgColors);
   const trace = resolveSvgTraceOptions(controls);
-  canvas = prepareCanvasForSvg(canvas, controls.mode);
+  canvas = prepareCanvasForSvg(canvas, controls.mode, controls.palette);
   progress(
     opts,
     controls.mode === "logo"

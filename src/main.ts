@@ -109,8 +109,9 @@ const SVG_RECIPES: Record<
   string,
   { mode: SvgMode; detail: number; palette: number }
 > = {
-  logo: { mode: "logo", detail: 7, palette: 3 },
-  "logo-sharp": { mode: "logo", detail: 9, palette: 3 },
+  logo: { mode: "logo", detail: 7, palette: 4 },
+  "logo-flat": { mode: "logo", detail: 7, palette: 3 },
+  "logo-sharp": { mode: "logo", detail: 9, palette: 4 },
   photo: { mode: "general", detail: 7, palette: 16 },
 };
 

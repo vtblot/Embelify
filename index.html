@@ -125,12 +125,15 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc" data-i18n="step3.desc">For a black logo like BAGGERO, leave “Logo B&amp;W” — do not hunt the sliders.</p>
+            <p class="step-desc" data-i18n="step3.desc">For BAGGERO, use “Logo + gray” to keep cat shading. Palette 3 = flat black; 4 = keep gray.</p>
             <div class="step-extra svg-recipes" id="svg-recipes-wrap" hidden>
               <span class="sub-label" data-i18n="step3.recipes">Best setting</span>
               <div class="recipe-row" role="group" data-i18n-aria="step3.recipes.aria" aria-label="SVG recipes">
                 <button type="button" class="recipe recipe-primary" data-svg-recipe="logo" data-i18n="step3.recipe.logo">
-                  Logo B&amp;W — best choice
+                  Logo + gray — best choice
+                </button>
+                <button type="button" class="recipe" data-svg-recipe="logo-flat" data-i18n="step3.recipe.logoFlat">
+                  Logo — flat B&amp;W
                 </button>
                 <button type="button" class="recipe" data-svg-recipe="logo-sharp" data-i18n="step3.recipe.logoSharp">
                   Logo — finer strokes
@@ -164,9 +167,9 @@
                 <div class="step-extra" id="svg-palette-wrap" hidden>
                   <div class="slider-head">
                     <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Palette levels</label>
-                    <span class="slider-value" id="svg-palette-value">3</span>
+                    <span class="slider-value" id="svg-palette-value">4</span>
                   </div>
-                  <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="3" />
+                  <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="4" />
                   <div class="slider-ends">
                     <span id="svg-palette-low" data-i18n="step3.palette.low">2 (B&amp;W)</span>
                     <span id="svg-palette-high" data-i18n="step3.palette.high">32 (rich)</span>
@@ -175,7 +178,7 @@
               </div>
             </details>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint.logo">
-              SVG approximates the cutout PNG — it will not match a hand-made brand vector. For BAGGERO stay on Logo B&amp;W.
+              Palette 4 keeps cat grays; 3 flattens to black. Contour detail changes path fidelity — try 4 vs 9 to see it.
             </p>
           </div>
         </fieldset>

@@ -37,6 +37,7 @@ export type Dict = {
   "step3.recipes": string;
   "step3.recipes.aria": string;
   "step3.recipe.logo": string;
+  "step3.recipe.logoFlat": string;
   "step3.recipe.logoSharp": string;
   "step3.recipe.photo": string;
   "step3.advanced": string;
@@ -147,13 +148,14 @@ export const en: Dict = {
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "For a black logo like BAGGERO, leave “Logo B&W” — do not hunt the sliders.",
+    "For BAGGERO, use “Logo + gray” to keep cat shading. Palette 3 = flat black; 4 = keep gray.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — black / white / gray marks",
   "step3.mode.general": "General — photos & multi-color",
   "step3.recipes": "Best setting",
   "step3.recipes.aria": "SVG recipes",
-  "step3.recipe.logo": "Logo B&W — best choice",
+  "step3.recipe.logo": "Logo + gray — best choice",
+  "step3.recipe.logoFlat": "Logo — flat B&W",
   "step3.recipe.logoSharp": "Logo — finer strokes",
   "step3.recipe.photo": "Photo only",
   "step3.advanced": "Advanced (optional)",
@@ -167,7 +169,7 @@ export const en: Dict = {
   "step3.hint":
     "Palette levels = how many tones to keep after posterize (not brand color names). B&W logo: 2–4. Photo: 12–24.",
   "step3.hint.logo":
-    "SVG approximates the cutout PNG — it will not match a hand-made brand vector. For BAGGERO stay on Logo B&W.",
+    "Palette 4 keeps cat grays; 3 flattens to black. Contour detail changes path fidelity — try 4 vs 9 to see it.",
   "step3.hint.general":
     "Photo mode only — not for flat logos. Soft photos: detail mid, palette 8–16.",
   "actions.recompute": "Recompute",
@@ -279,13 +281,14 @@ export const fr: Dict = {
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Pour un logo noir comme BAGGERO, laissez « Logo N&B » — inutile de chercher le curseur parfait.",
+    "Pour BAGGERO, utilisez « Logo + gris » pour garder les ombres du chat. Palette 3 = noir plat ; 4 = conserve le gris.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — aplats noir / blanc / gris",
   "step3.mode.general": "Général — photos & multicolore",
   "step3.recipes": "Meilleur réglage",
   "step3.recipes.aria": "Recettes SVG",
-  "step3.recipe.logo": "Logo N&B — meilleur choix",
+  "step3.recipe.logo": "Logo + gris — meilleur choix",
+  "step3.recipe.logoFlat": "Logo — N&B plat",
   "step3.recipe.logoSharp": "Logo — traits plus fins",
   "step3.recipe.photo": "Photo uniquement",
   "step3.advanced": "Réglages avancés (optionnel)",
@@ -299,7 +302,7 @@ export const fr: Dict = {
   "step3.hint":
     "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo N&B : 2–4. Photo : 12–24.",
   "step3.hint.logo":
-    "Le SVG approche le PNG détouré — ce n’est pas un fichier vectoriel de marque. Pour BAGGERO, restez sur Logo N&B.",
+    "Palette 4 garde les gris du chat ; 3 aplatit en noir. Le détail des contours change vraiment — testez 4 vs 9.",
   "step3.hint.general":
     "Mode photo uniquement — pas pour un logo plat. Photos douces : détail moyen, palette 8–16.",
   "actions.recompute": "Recalculer",

@@ -573,14 +573,15 @@ select {
 
 /* Black SVG marks vanish on the dark checker — use a light plate for vector preview */
 .preview-frame.is-svg .checker {
+  /* Mid checker: black ink AND white eyes both readable */
   background-image:
-    linear-gradient(45deg, #c5cec8 25%, transparent 25%),
-    linear-gradient(-45deg, #c5cec8 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #c5cec8 75%),
-    linear-gradient(-45deg, transparent 75%, #c5cec8 75%);
+    linear-gradient(45deg, #7a857e 25%, transparent 25%),
+    linear-gradient(-45deg, #7a857e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #7a857e 75%),
+    linear-gradient(-45deg, transparent 75%, #7a857e 75%);
   background-size: 18px 18px;
   background-position: 0 0, 0 9px, 9px -9px, -9px 0;
-  background-color: #e4ebe6;
+  background-color: #a7b0a9;
   opacity: 1;
 }
 

@@ -1,7 +1,7 @@
 /**
  * Post-process ImageTracer SVG for Logo mode:
- * snap near-black / near-white fills to pure brand tones, and drop
- * zero-opacity hole-bucket paths ImageTracer emits for transparent pixels.
+ * snap near-black / near-white fills to pure brand tones, preserve mid-gray,
+ * and drop zero-opacity hole-bucket paths.
  */
 
 function parseRgb(fill: string): { r: number; g: number; b: number } | null {
@@ -30,8 +30,9 @@ function snapFillColor(fill: string): string {
   const c = parseRgb(trimmed);
   if (!c) return fill;
   const L = luma(c.r, c.g, c.b);
-  if (L <= 90) return "#000000";
-  if (L >= 200) return "#ffffff";
+  // Only snap near-black / near-white — mid-gray face banding must survive.
+  if (L <= 40) return "#000000";
+  if (L >= 220) return "#ffffff";
   return fill;
 }
 
@@ -56,7 +57,6 @@ export function polishLogoSvg(svg: string): string {
     return `fill:${snapFillColor(String(value).trim())}`;
   });
 
-  // Drop zero-opacity / none hole-bucket paths (transparent palette layer)
   out = out.replace(/<path\b[^>]*>/gi, (tag) => {
     if (/\bfill\s*=\s*["'](?:none|transparent)["']/i.test(tag)) return "";
     if (pathOpacity(tag) <= 0.01) return "";

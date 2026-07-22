@@ -56,13 +56,12 @@ function detailToTrace(
 > {
   const t = (clamp(detail, 1, 10) - 1) / 9;
   if (mode === "logo") {
-    // Gentler omit so wordmark stems (B, A, R…) survive at the recommended detail.
-    // detail 7 ≈ pathomit ~3–4, ltres ~0.7 — best default for BAGGERO-like marks.
+    // Wide curve so Advanced "Contour detail" is visibly different at 1 vs 10.
     return {
-      ltres: lerp(1.4, 0.3, t),
-      qtres: lerp(1.4, 0.3, t),
-      pathomit: Math.round(lerp(10, 1, t)),
-      linefilter: detail <= 4,
+      ltres: lerp(2.2, 0.2, t),
+      qtres: lerp(2.2, 0.2, t),
+      pathomit: Math.round(lerp(18, 0, t)),
+      linefilter: detail <= 3,
       rightangleenhance: detail <= 8,
     };
   }
@@ -82,7 +81,7 @@ function detailToTrace(
  * - General: full 2–32 levels for photos / multi-color art.
  */
 export function resolveSvgTraceOptions(
-  controls: SvgSliderControls = { mode: "logo", detail: 7, palette: 3 },
+  controls: SvgSliderControls = { mode: "logo", detail: 7, palette: 4 },
 ): SvgTraceOptions {
   const mode = controls.mode === "general" ? "general" : "logo";
   const detail = clamp(Math.round(controls.detail), 1, 10);
@@ -104,10 +103,7 @@ export function resolveSvgTraceOptions(
       viewbox: true,
     };
     if (palette <= 3) {
-      // Transparent MUST be {0,0,0,a:0}. Canvas getImageData zeros RGB on a=0
-      // pixels, so a green "sentinel" never survives — and (0,0,0,0) is then
-      // equidistant to black (a:255) vs green (a:0), so ImageTracer picks black
-      // first → full-canvas black slab with only white eyes cut out.
+      // Flat N&B. Transparent MUST be {0,0,0,a:0} (canvas zeros RGB on a=0).
       base.numberofcolors = 3;
       base.pal = [
         { r: 0, g: 0, b: 0, a: 255 },
@@ -115,8 +111,14 @@ export function resolveSvgTraceOptions(
         { r: 0, g: 0, b: 0, a: 0 },
       ];
     } else {
-      // 4 levels: allow one mid-gray without averaging away whites
-      base.colorsampling = 2;
+      // Black + mid-gray + white + clear — stable cat face banding
+      base.numberofcolors = 4;
+      base.pal = [
+        { r: 0, g: 0, b: 0, a: 255 },
+        { r: 96, g: 96, b: 98, a: 255 },
+        { r: 255, g: 255, b: 255, a: 255 },
+        { r: 0, g: 0, b: 0, a: 0 },
+      ];
     }
     return base;
   }
@@ -147,7 +149,7 @@ export function controlsFromLegacy(
 ): SvgSliderControls {
   const colorMap: Record<SvgColors, number> = { few: 3, auto: 12, many: 24 };
   if (style === "logo" || !style) {
-    return { mode: "logo", detail: 7, palette: colorMap[colors ?? "few"] ?? 3 };
+    return { mode: "logo", detail: 7, palette: colorMap[colors ?? "few"] ?? 4 };
   }
   if (style === "clean") {
     return { mode: "general", detail: 3, palette: colorMap[colors ?? "few"] ?? 6 };
