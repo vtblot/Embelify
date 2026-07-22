@@ -447,8 +447,8 @@ function rasterToSvgInWorker(
 
 async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Promise<string> {
   throwIfAborted(opts.signal);
-  const style = opts.svgStyle ?? "clean";
-  const colors = opts.svgColors ?? "auto";
+  const style = opts.svgStyle ?? "faithful";
+  const colors = opts.svgColors ?? "many";
   const trace = resolveSvgTraceOptions(style, colors);
   canvas = prepareCanvasForSvg(canvas, style);
   progress(
@@ -535,7 +535,8 @@ export async function runPipeline(
       // Final scrub after upscale — Lanczos can still soften ear tips to light crumbs
       if (opts.removeBg) {
         const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(canvas, {
-          maxPasses: (opts.edgeTighten ?? "normal") === "tight" ? 12 : 6,
+          maxPasses: (opts.edgeTighten ?? "normal") === "tight" ? 14 : 10,
+          aggressive: true,
         });
         if (removed > 0) {
           progress(

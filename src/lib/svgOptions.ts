@@ -1,5 +1,5 @@
 /** User-facing SVG quality presets. */
-export type SvgStyle = "clean" | "balanced" | "detailed";
+export type SvgStyle = "faithful" | "clean" | "balanced" | "detailed";
 /** Palette size for ImageTracer quantization. */
 export type SvgColors = "few" | "auto" | "many";
 
@@ -19,7 +19,6 @@ export type SvgTraceOptions = {
 };
 
 const COLOR_COUNT: Record<SvgColors, number> = {
-  // 4 was too low with transparency (palette slots eaten by empty bg) — wiped logos.
   few: 6,
   auto: 10,
   many: 16,
@@ -27,14 +26,31 @@ const COLOR_COUNT: Record<SvgColors, number> = {
 
 /**
  * Map UI presets → ImageTracer knobs.
- * Clean favors logos: enough palette slots (few was 4 + pathomit 36 → empty SVG),
- * modest pathomit, no pre-blur.
+ * Default "faithful" keeps more colors / detail so the SVG is closer to the PNG.
+ * Clean + Few posterizes — fine for flat marks, not for shaded logos.
  */
 export function resolveSvgTraceOptions(
-  style: SvgStyle = "clean",
-  colors: SvgColors = "auto",
+  style: SvgStyle = "faithful",
+  colors: SvgColors = "many",
 ): SvgTraceOptions {
   const numberofcolors = COLOR_COUNT[colors] ?? 10;
+
+  if (style === "faithful") {
+    return {
+      ltres: 0.4,
+      qtres: 0.4,
+      pathomit: 2,
+      colorsampling: 2,
+      numberofcolors: Math.max(numberofcolors, 16),
+      strokewidth: 0,
+      blurradius: 0,
+      blurdelta: 20,
+      scale: 1,
+      viewbox: true,
+      linefilter: false,
+      rightangleenhance: false,
+    };
+  }
 
   if (style === "detailed") {
     return {
@@ -70,7 +86,7 @@ export function resolveSvgTraceOptions(
     };
   }
 
-  // clean — logos: keep pathomit low when colors are few (high omit erased shapes)
+  // clean — flat logos / marks (posterizes gradients on purpose)
   const pathomit = colors === "few" ? 8 : colors === "auto" ? 14 : 20;
   return {
     ltres: 1.2,

@@ -608,12 +608,13 @@ function edgeParams(edge: EdgeTighten) {
       spurPasses: 10,
     };
   }
+  // Normal: catch mid-gray AA halo on dark logos without full tight erode
   return {
-    softDrop: 72,
+    softDrop: 88,
     hardenAt: 120,
     erodeRadius: 2,
-    lightPeel: 145,
-    spurPasses: 3,
+    lightPeel: 128,
+    spurPasses: 5,
   };
 }
 
@@ -830,7 +831,7 @@ export function applyCutScope(
  */
 export function scrubMismatchedEdgeColors(
   canvas: HTMLCanvasElement,
-  opts: { maxPasses?: number } = {},
+  opts: { maxPasses?: number; aggressive?: boolean } = {},
 ): { canvas: HTMLCanvasElement; removed: number } {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
@@ -839,6 +840,7 @@ export function scrubMismatchedEdgeColors(
   const image = ctx.getImageData(0, 0, w, h);
   const { data } = image;
   const maxPasses = opts.maxPasses ?? 6;
+  const aggressive = opts.aggressive ?? false;
 
   // Core luma = opaque pixels not on the transparent border
   let coreSum = 0;
@@ -864,7 +866,10 @@ export function scrubMismatchedEdgeColors(
   }
 
   // Edge residue = much lighter than the dark core (white chin crumbs, ear fringe)
-  const residueDelta = Math.max(45, 110 - coreMean * 0.35);
+  // Aggressive (post-upscale): also catch mid-gray AA that Lanczos softens into a halo
+  const residueDelta = aggressive
+    ? Math.max(32, 85 - coreMean * 0.3)
+    : Math.max(45, 110 - coreMean * 0.35);
   let removed = 0;
 
   for (let pass = 0; pass < maxPasses; pass++) {
@@ -925,7 +930,10 @@ export function scrubMismatchedEdgeColors(
 
         const L = luma(snap[i], snap[i + 1], snap[i + 2]);
         // Must be clearly light vs dark logo core
-        if (L < Math.max(150, coreMean + 70)) continue;
+        const tipFloor = aggressive
+          ? Math.max(120, coreMean + 45)
+          : Math.max(150, coreMean + 70);
+        if (L < tipFloor) continue;
 
         let opaqueN = 0;
         let darkN = 0;
@@ -960,7 +968,9 @@ export function scrubMismatchedEdgeColors(
   // that survive matte + tip scrub — BFS from transparent / near-transparent.
   // Stops at the dark body so interior lights (eyes) stay intact.
   {
-    const LIGHT = Math.max(165, Math.min(235, Math.round(coreMean + 85)));
+    const LIGHT = aggressive
+      ? Math.max(140, Math.min(220, Math.round(coreMean + 65)))
+      : Math.max(165, Math.min(235, Math.round(coreMean + 85)));
     const peel = new Uint8Array(w * h);
     const queue = new Int32Array(w * h);
     let qh = 0;
@@ -1040,7 +1050,7 @@ export function scrubMismatchedEdgeColors(
  */
 export function hardenRasterForSvg(
   canvas: HTMLCanvasElement,
-  intensity: "clean" | "balanced" | "detailed" = "clean",
+  intensity: "faithful" | "clean" | "balanced" | "detailed" = "faithful",
 ): HTMLCanvasElement {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
@@ -1058,10 +1068,17 @@ export function hardenRasterForSvg(
   const opaqueBefore = countOpaque(data);
   if (opaqueBefore < 32) return canvas;
 
-  // Milder than first pass — gray-shaded logos were flood-peeled away
-  const lightPeel = intensity === "clean" ? 130 : intensity === "balanced" ? 145 : 160;
-  const spurPasses = intensity === "clean" ? 3 : intensity === "balanced" ? 2 : 0;
-  const scrubPasses = intensity === "clean" ? 8 : intensity === "balanced" ? 6 : 3;
+  // Faithful / detailed: light touch only — preserve source shading
+  const lightPeel =
+    intensity === "clean"
+      ? 130
+      : intensity === "balanced"
+        ? 145
+        : 160;
+  const spurPasses =
+    intensity === "clean" ? 3 : intensity === "balanced" ? 2 : 0;
+  const scrubPasses =
+    intensity === "clean" ? 8 : intensity === "balanced" ? 6 : 4;
 
   hardenMatte(data, 128);
   peelLightFringeFromDarkSubjects(data, w, h, null, { lightThreshold: lightPeel });

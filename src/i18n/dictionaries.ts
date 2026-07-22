@@ -31,6 +31,7 @@ export type Dict = {
   "step3.optional": string;
   "step3.desc": string;
   "step3.style": string;
+  "step3.style.faithful": string;
   "step3.style.clean": string;
   "step3.style.balanced": string;
   "step3.style.detailed": string;
@@ -123,7 +124,7 @@ export const en: Dict = {
   "step2.auto": "Auto — detect logo or photo",
   "step2.ai": "Photo — cut out a person / object",
   "step2.hint.chroma": "Best for logos / flat graphics: removes a single background color (often black).",
-  "step2.hint.auto": "Picks for you: solid color for a logo, subject cutout for a photo.",
+  "step2.hint.auto": "Picks for you: solid color for a logo, subject cutout for a photo. For shaded logos, prefer Solid color.",
   "step2.hint.ai": "For photos: isolates a person or object. Not suited to flat logos. Exterior only restores eyes from the original.",
   "step2.edges": "Edges",
   "step2.edges.normal": "Normal",
@@ -133,9 +134,11 @@ export const en: Dict = {
   "step2.scope.interior": "Exterior + interior — also clear holes",
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
-  "step3.desc": "Vectorizes logos / simple shapes. Not suited to photos.",
+  "step3.desc":
+    "Vectorizes logos / simple shapes. Gradients are simplified — leave off for a PNG that matches your source.",
   "step3.style": "Style",
-  "step3.style.clean": "Clean — logos, few paths",
+  "step3.style.faithful": "Faithful — closer to the PNG",
+  "step3.style.clean": "Clean — flat logo, posterize",
   "step3.style.balanced": "Balanced",
   "step3.style.detailed": "Detailed — keep fine edges",
   "step3.colors": "Colors",
@@ -143,7 +146,7 @@ export const en: Dict = {
   "step3.colors.auto": "Auto (10)",
   "step3.colors.many": "Many (16)",
   "step3.hint":
-    "Clean + few colors = flatter logo SVG. Turn on transparent background first to avoid tracing crumbs.",
+    "For the same look as your source, keep SVG off and download the transparent PNG. Clean + Few flattens shaded logos.",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
@@ -239,7 +242,7 @@ export const fr: Dict = {
   "step2.hint.chroma":
     "Idéal pour logos / aplats : enlève une couleur de fond (souvent le noir).",
   "step2.hint.auto":
-    "Choisit tout seul : fond uni pour un logo, découpe sujet pour une photo.",
+    "Choisit tout seul : fond uni pour un logo, découpe sujet pour une photo. Pour un logo ombré, préférez Couleur unie.",
   "step2.hint.ai":
     "Pour les photos : isole une personne ou un objet. Pas adapté aux logos plats. « Extérieur seul » restaure les yeux depuis l’original.",
   "step2.edges": "Bords",
@@ -250,9 +253,11 @@ export const fr: Dict = {
   "step2.scope.interior": "Extérieur + intérieur — vide aussi les trous",
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
-  "step3.desc": "Vectorise logos / formes simples. Pas adapté aux photos.",
+  "step3.desc":
+    "Vectorise logos / formes simples. Les dégradés sont simplifiés — laissez off pour un PNG fidèle à la source.",
   "step3.style": "Style",
-  "step3.style.clean": "Propre — logos, peu de chemins",
+  "step3.style.faithful": "Fidèle — plus proche du PNG",
+  "step3.style.clean": "Propre — logo plat, posterise",
   "step3.style.balanced": "Équilibré",
   "step3.style.detailed": "Détaillé — garde les fins contours",
   "step3.colors": "Couleurs",
@@ -260,7 +265,7 @@ export const fr: Dict = {
   "step3.colors.auto": "Auto (10)",
   "step3.colors.many": "Beaucoup (16)",
   "step3.hint":
-    "Propre + peu de couleurs = SVG logo plus plat. Activez le fond transparent avant pour éviter de vectoriser les miettes.",
+    "Pour le même rendu que votre source, laissez SVG off et téléchargez le PNG transparent. Propre + Peu aplatit les logos ombrés.",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",
