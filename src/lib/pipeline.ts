@@ -4,6 +4,7 @@ import {
   flattenLogoForSvg,
   hardenRasterForSvg,
   looksLikeFlatGraphic,
+  punchLargeEnclosedBrightHoles,
   removeSolidBackground,
   scrubMismatchedEdgeColors,
   type CutScope,
@@ -398,6 +399,17 @@ async function removeBackgroundAi(
       reportResidue(removed);
       wipeCanvas(raw);
       raw = scrubbed;
+    } else {
+      wipeCanvas(scrubbed);
+    }
+    // Exterior restore brings back eyes AND white letter counters.
+    // Open large counters; keep small eye/nose whites (logo + flat marks).
+    if (logoLike) {
+      const punched = punchLargeEnclosedBrightHoles(raw);
+      if (punched !== raw) {
+        wipeCanvas(raw);
+        raw = punched;
+      }
     }
   }
   wipeCanvas(original);

@@ -1390,6 +1390,114 @@ export function hardenRasterForSvg(
 }
 
 /**
+ * Wordmarks often paint letter counters white (B/A/O). Eyes are also white but small.
+ * Punch large enclosed bright islands to transparent; keep small ones (eyes / nose).
+ *
+ * AA fringe must not count as “exterior” — only true transparent (or the image border).
+ */
+export function punchLargeEnclosedBrightHoles(
+  canvas: HTMLCanvasElement,
+  opts: { maxKeepRatio?: number; minLuma?: number } = {},
+): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  const w = canvas.width;
+  const h = canvas.height;
+  const image = ctx.getImageData(0, 0, w, h);
+  const { data } = image;
+
+  let opaqueN = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] >= 16) opaqueN += 1;
+  }
+  if (opaqueN < 64) return canvas;
+
+  const minLuma = opts.minLuma ?? 170;
+  const minSide = Math.min(w, h);
+  // Eyes ≈ disc with radius ~6–9% of the short side; letter counters are larger.
+  const eyeRadius = Math.max(7, minSide * 0.075);
+  const eyeArea = Math.floor(Math.PI * eyeRadius * eyeRadius);
+  const maxKeepRatio = opts.maxKeepRatio ?? 0.012;
+  const maxKeep = Math.max(eyeArea, Math.floor(opaqueN * maxKeepRatio));
+
+  const label = new Int32Array(w * h);
+  const queue = new Int32Array(w * h);
+  let next = 1;
+  let changed = false;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = y * w + x;
+      if (label[start]) continue;
+      const si = start * 4;
+      if (data[si + 3] < 200) continue;
+      if (luma(data[si], data[si + 1], data[si + 2]) < minLuma) continue;
+
+      let qh = 0;
+      let qt = 0;
+      let touchesClear = false;
+      let size = 0;
+      label[start] = next;
+      queue[qt++] = start;
+      const cells: number[] = [];
+
+      while (qh < qt) {
+        const idx = queue[qh++];
+        cells.push(idx);
+        size += 1;
+        const cx = idx % w;
+        const cy = (idx / w) | 0;
+        // Only real holes / border — not mid-alpha AA against ink
+        if (touchesTransparent(data, w, h, cx, cy, 1)) touchesClear = true;
+
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+              touchesClear = true;
+              continue;
+            }
+            const nidx = ny * w + nx;
+            if (label[nidx]) continue;
+            const ni = nidx * 4;
+            const na = data[ni + 3];
+            if (na < 16) {
+              touchesClear = true;
+              continue;
+            }
+            // Soft AA / dark ink: stop growth, but do not treat as exterior
+            if (na < 200) continue;
+            if (luma(data[ni], data[ni + 1], data[ni + 2]) < minLuma - 30) continue;
+            label[nidx] = next;
+            queue[qt++] = nidx;
+          }
+        }
+      }
+
+      // Large enclosed white = letter counter → open it. Small = eye/nose → keep.
+      if (!touchesClear && size > maxKeep) {
+        for (const idx of cells) {
+          data[idx * 4 + 3] = 0;
+        }
+        changed = true;
+      }
+      next += 1;
+    }
+  }
+
+  if (!changed) return canvas;
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) throw new Error("Canvas 2D indisponible.");
+  outCtx.putImageData(image, 0, 0);
+  return out;
+}
+
+/**
  * Remove the solid background connected to the image edges.
  * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo cutout.
  */
@@ -1552,5 +1660,7 @@ export function removeSolidBackground(
   const keyedCtx = keyed.getContext("2d");
   if (!keyedCtx) throw new Error("Canvas 2D indisponible.");
   keyedCtx.putImageData(image, 0, 0);
-  return cleanupCutoutEdges(keyed, edge, bg);
+  const cleaned = cleanupCutoutEdges(keyed, edge, bg);
+  // Open large white letter counters; keep small eye/nose whites
+  return punchLargeEnclosedBrightHoles(cleaned);
 }
