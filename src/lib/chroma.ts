@@ -1036,6 +1036,7 @@ export function scrubMismatchedEdgeColors(
  * Prepare a cutout raster for ImageTracer: binary matte, peel mid-gray /
  * white fringe, recolor remaining rim to dark interior. Stops the tracer
  * from inventing a light halo path around dark logos.
+ * Aborts aggressive steps if they would erase most of the subject.
  */
 export function hardenRasterForSvg(
   canvas: HTMLCanvasElement,
@@ -1047,18 +1048,33 @@ export function hardenRasterForSvg(
   const h = canvas.height;
   const image = ctx.getImageData(0, 0, w, h);
   const { data } = image;
+  const snapshot = new Uint8ClampedArray(data);
 
-  const lightPeel = intensity === "clean" ? 105 : intensity === "balanced" ? 125 : 145;
-  const spurPasses = intensity === "clean" ? 6 : intensity === "balanced" ? 3 : 1;
-  const scrubPasses = intensity === "clean" ? 14 : intensity === "balanced" ? 8 : 4;
+  const countOpaque = (buf: Uint8ClampedArray) => {
+    let n = 0;
+    for (let i = 3; i < buf.length; i += 4) if (buf[i] >= 16) n += 1;
+    return n;
+  };
+  const opaqueBefore = countOpaque(data);
+  if (opaqueBefore < 32) return canvas;
+
+  // Milder than first pass — gray-shaded logos were flood-peeled away
+  const lightPeel = intensity === "clean" ? 130 : intensity === "balanced" ? 145 : 160;
+  const spurPasses = intensity === "clean" ? 3 : intensity === "balanced" ? 2 : 0;
+  const scrubPasses = intensity === "clean" ? 8 : intensity === "balanced" ? 6 : 3;
 
   hardenMatte(data, 128);
   peelLightFringeFromDarkSubjects(data, w, h, null, { lightThreshold: lightPeel });
-  if (spurPasses > 0) erodeThinSpurs(data, w, h, spurPasses);
-  recolorEdgesFromInterior(data, w, h);
-  hardenMatte(data, 128);
+  if (countOpaque(data) < opaqueBefore * 0.55) {
+    data.set(snapshot);
+    hardenMatte(data, 128);
+  } else {
+    if (spurPasses > 0) erodeThinSpurs(data, w, h, spurPasses);
+    recolorEdgesFromInterior(data, w, h);
+    hardenMatte(data, 128);
+  }
 
-  // Snap any remaining light rim pixels to transparent (not a new gray layer)
+  // Snap only clearly light rim crumbs (not mid-gray body shading)
   let coreSum = 0;
   let coreN = 0;
   for (let y = 0; y < h; y++) {
@@ -1073,7 +1089,7 @@ export function hardenRasterForSvg(
   if (coreN >= 16) {
     const coreMean = coreSum / coreN;
     if (coreMean < 140) {
-      const rimLimit = Math.max(95, coreMean + 55);
+      const rimLimit = Math.max(155, coreMean + 90);
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           const i = (y * w + x) * 4;
@@ -1089,6 +1105,13 @@ export function hardenRasterForSvg(
     }
   }
 
+  if (countOpaque(data) < opaqueBefore * 0.55) {
+    data.set(snapshot);
+    hardenMatte(data, 128);
+    recolorEdgesFromInterior(data, w, h);
+    hardenMatte(data, 128);
+  }
+
   const mid = document.createElement("canvas");
   mid.width = w;
   mid.height = h;
@@ -1099,19 +1122,20 @@ export function hardenRasterForSvg(
   const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(mid, {
     maxPasses: scrubPasses,
   });
-  if (removed > 0) {
-    // Final harden after scrub punched holes in the rim
-    const sctx = scrubbed.getContext("2d", { willReadFrequently: true });
-    if (sctx) {
-      const simg = sctx.getImageData(0, 0, w, h);
-      hardenMatte(simg.data, 128);
-      recolorEdgesFromInterior(simg.data, w, h);
-      hardenMatte(simg.data, 128);
-      sctx.putImageData(simg, 0, 0);
+  const out = removed > 0 ? scrubbed : mid;
+  const octx = out.getContext("2d", { willReadFrequently: true });
+  if (octx) {
+    const oimg = octx.getImageData(0, 0, w, h);
+    if (countOpaque(oimg.data) < opaqueBefore * 0.55) {
+      // Scrub ate the subject — fall back to pre-scrub harden
+      return mid;
     }
-    return scrubbed;
+    hardenMatte(oimg.data, 128);
+    recolorEdgesFromInterior(oimg.data, w, h);
+    hardenMatte(oimg.data, 128);
+    octx.putImageData(oimg, 0, 0);
   }
-  return mid;
+  return out;
 }
 
 /**
