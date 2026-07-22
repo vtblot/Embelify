@@ -628,6 +628,105 @@ export function cleanupCutoutEdges(
 }
 
 /**
+ * Contour scope:
+ * - exterior: only remove background connected to the image edges; keep eyes / interior details
+ * - interior: allow interior holes (AI default; chroma also keys enclosed bg pockets)
+ */
+export type CutScope = "exterior" | "interior";
+
+/**
+ * After a cutout, restore interior holes / destroyed bright details (e.g. white eyes)
+ * from the original when scope is "exterior". Exterior transparent stays transparent.
+ */
+export function applyCutScope(
+  cutout: HTMLCanvasElement,
+  original: HTMLCanvasElement,
+  scope: CutScope,
+): HTMLCanvasElement {
+  if (scope === "interior") return cutout;
+  if (cutout.width !== original.width || cutout.height !== original.height) {
+    return cutout;
+  }
+
+  const cCtx = cutout.getContext("2d", { willReadFrequently: true });
+  const oCtx = original.getContext("2d", { willReadFrequently: true });
+  if (!cCtx || !oCtx) throw new Error("Canvas 2D indisponible.");
+
+  const w = cutout.width;
+  const h = cutout.height;
+  const cImg = cCtx.getImageData(0, 0, w, h);
+  const oImg = oCtx.getImageData(0, 0, w, h);
+  const c = cImg.data;
+  const o = oImg.data;
+
+  // Exterior background = transparent (or very soft) reachable from the image edges
+  const exterior = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  let qh = 0;
+  let qt = 0;
+  const ALPHA_TH = 28;
+
+  const enq = (x: number, y: number) => {
+    const idx = y * w + x;
+    if (exterior[idx]) return;
+    if (c[idx * 4 + 3] >= ALPHA_TH) return;
+    exterior[idx] = 1;
+    queue[qt++] = idx;
+  };
+
+  for (let x = 0; x < w; x++) {
+    enq(x, 0);
+    enq(x, h - 1);
+  }
+  for (let y = 0; y < h; y++) {
+    enq(0, y);
+    enq(w - 1, y);
+  }
+  while (qh < qt) {
+    const idx = queue[qh++];
+    const x = idx % w;
+    const y = (idx / w) | 0;
+    if (x > 0) enq(x - 1, y);
+    if (x + 1 < w) enq(x + 1, y);
+    if (y > 0) enq(x, y - 1);
+    if (y + 1 < h) enq(x, y + 1);
+  }
+
+  for (let i = 0; i < w * h; i++) {
+    const j = i * 4;
+    if (exterior[i]) {
+      c[j + 3] = 0;
+      continue;
+    }
+
+    const oA = o[j + 3];
+    const cA = c[j + 3];
+    if (oA < 16) continue;
+
+    const oL = luma(o[j], o[j + 1], o[j + 2]);
+    const cL = luma(c[j], c[j + 1], c[j + 2]);
+
+    // Hole punched by AI, or bright interior detail darkened/removed (white eye)
+    const isHole = cA < ALPHA_TH;
+    const lostBright = oA > 200 && oL > 170 && (cA < 200 || cL < oL - 50);
+    if (isHole || lostBright) {
+      c[j] = o[j];
+      c[j + 1] = o[j + 1];
+      c[j + 2] = o[j + 2];
+      c[j + 3] = 255;
+    }
+  }
+
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) throw new Error("Canvas 2D indisponible.");
+  outCtx.putImageData(cImg, 0, 0);
+  return out;
+}
+
+/**
  * Remove the solid background connected to the image edges.
  * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo cutout.
  */
@@ -636,6 +735,8 @@ export type EdgeTighten = "normal" | "tight";
 export type ChromaOptions = {
   /** How aggressively to crop fringe after keying. */
   edge?: EdgeTighten;
+  /** exterior = keep enclosed details; interior = also key enclosed bg pockets */
+  scope?: CutScope;
 };
 
 export function removeSolidBackground(
@@ -646,6 +747,7 @@ export function removeSolidBackground(
   if (!ctx) throw new Error("Canvas 2D indisponible.");
 
   const edge: EdgeTighten = opts.edge ?? "normal";
+  const scope: CutScope = opts.scope ?? "exterior";
   const p = edgeParams(edge);
 
   const w = canvas.width;
@@ -685,6 +787,17 @@ export function removeSolidBackground(
     if (x + 1 < w) enqueue(x + 1, y);
     if (y > 0) enqueue(x, y - 1);
     if (y + 1 < h) enqueue(x, y + 1);
+  }
+
+  // Interior scope: also key enclosed bg-colored pockets (rings, counters)
+  if (scope === "interior") {
+    for (let idx = 0; idx < visited.length; idx++) {
+      if (visited[idx]) continue;
+      const i = idx * 4;
+      if (dist2(data[i], data[i + 1], data[i + 2], bg) <= HARD_DIST) {
+        visited[idx] = 1;
+      }
+    }
   }
 
   for (let idx = 0; idx < visited.length; idx++) {
