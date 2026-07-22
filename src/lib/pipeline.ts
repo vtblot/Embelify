@@ -306,7 +306,13 @@ async function removeBackgroundAi(
   wipeCanvas(original);
 
   if (logoLike || edge === "tight") {
-    const cleaned = cleanupCutoutEdges(raw, edge, null);
+    const cleaned = cleanupCutoutEdges(raw, edge, null, {
+      onResidue: (n) =>
+        progress(
+          opts,
+          `Résidu de contour détecté (${n} px) — nettoyage des couleurs hors sujet…`,
+        ),
+    });
     wipeCanvas(raw);
     return cleaned;
   }
