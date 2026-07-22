@@ -14,9 +14,10 @@ function resolveSvgTraceOptions(style = "clean", colors = "auto") {
     return { pathomit: 12, numberofcolors, linefilter: true };
   }
   return {
-    pathomit: 28,
+    pathomit: 36,
     numberofcolors: Math.min(numberofcolors, 8),
     linefilter: true,
+    blurradius: 0,
   };
 }
 
@@ -26,6 +27,7 @@ const few = resolveSvgTraceOptions("clean", "few");
 
 if (clean.numberofcolors !== 8) throw new Error(`clean colors: ${clean.numberofcolors}`);
 if (clean.pathomit < 20) throw new Error(`clean pathomit too low: ${clean.pathomit}`);
+if (clean.blurradius !== 0) throw new Error("clean must not pre-blur (creates halo)");
 if (!clean.linefilter) throw new Error("clean should linefilter");
 if (few.numberofcolors !== 4) throw new Error(`few colors: ${few.numberofcolors}`);
 if (detailed.numberofcolors < 12) throw new Error(`detailed colors: ${detailed.numberofcolors}`);

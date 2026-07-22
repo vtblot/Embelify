@@ -1033,6 +1033,88 @@ export function scrubMismatchedEdgeColors(
 }
 
 /**
+ * Prepare a cutout raster for ImageTracer: binary matte, peel mid-gray /
+ * white fringe, recolor remaining rim to dark interior. Stops the tracer
+ * from inventing a light halo path around dark logos.
+ */
+export function hardenRasterForSvg(
+  canvas: HTMLCanvasElement,
+  intensity: "clean" | "balanced" | "detailed" = "clean",
+): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  const w = canvas.width;
+  const h = canvas.height;
+  const image = ctx.getImageData(0, 0, w, h);
+  const { data } = image;
+
+  const lightPeel = intensity === "clean" ? 105 : intensity === "balanced" ? 125 : 145;
+  const spurPasses = intensity === "clean" ? 6 : intensity === "balanced" ? 3 : 1;
+  const scrubPasses = intensity === "clean" ? 14 : intensity === "balanced" ? 8 : 4;
+
+  hardenMatte(data, 128);
+  peelLightFringeFromDarkSubjects(data, w, h, null, { lightThreshold: lightPeel });
+  if (spurPasses > 0) erodeThinSpurs(data, w, h, spurPasses);
+  recolorEdgesFromInterior(data, w, h);
+  hardenMatte(data, 128);
+
+  // Snap any remaining light rim pixels to transparent (not a new gray layer)
+  let coreSum = 0;
+  let coreN = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i + 3] < 200) continue;
+      if (touchesTransparent(data, w, h, x, y, 2)) continue;
+      coreSum += luma(data[i], data[i + 1], data[i + 2]);
+      coreN += 1;
+    }
+  }
+  if (coreN >= 16) {
+    const coreMean = coreSum / coreN;
+    if (coreMean < 140) {
+      const rimLimit = Math.max(95, coreMean + 55);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          if (data[i + 3] < 16) continue;
+          if (!touchesTransparent(data, w, h, x, y, 1)) continue;
+          if (luma(data[i], data[i + 1], data[i + 2]) >= rimLimit) {
+            data[i + 3] = 0;
+          }
+        }
+      }
+      recolorEdgesFromInterior(data, w, h);
+      hardenMatte(data, 128);
+    }
+  }
+
+  const mid = document.createElement("canvas");
+  mid.width = w;
+  mid.height = h;
+  const midCtx = mid.getContext("2d");
+  if (!midCtx) throw new Error("Canvas 2D indisponible.");
+  midCtx.putImageData(image, 0, 0);
+
+  const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(mid, {
+    maxPasses: scrubPasses,
+  });
+  if (removed > 0) {
+    // Final harden after scrub punched holes in the rim
+    const sctx = scrubbed.getContext("2d", { willReadFrequently: true });
+    if (sctx) {
+      const simg = sctx.getImageData(0, 0, w, h);
+      hardenMatte(simg.data, 128);
+      recolorEdgesFromInterior(simg.data, w, h);
+      hardenMatte(simg.data, 128);
+      sctx.putImageData(simg, 0, 0);
+    }
+    return scrubbed;
+  }
+  return mid;
+}
+
+/**
  * Remove the solid background connected to the image edges.
  * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo cutout.
  */
