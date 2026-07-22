@@ -7,6 +7,13 @@ const baggeroUrl =
   (import.meta.env.VITE_BAGGERO_URL as string | undefined)?.trim() ||
   "";
 
+/**
+ * Brand assets (footer lockup):
+ *   public/baggero-logo.png  ← drop the official Baggero PNG here (replace stand-in)
+ *   public/baggero-mark.svg  ← optional SVG fallback if the PNG fails to load
+ *
+ * Do not regenerate the logo from chat screenshots — use the real source file.
+ */
 export const BRAND = {
   name: "Embelify",
   /** Operating company */
@@ -14,7 +21,7 @@ export const BRAND = {
   baggero: {
     name: "Baggero",
     url: baggeroUrl,
-    /** Prefer official raster lockup; SVG mark is a fallback only */
+    /** Official raster lockup — replace public/baggero-logo.png with the real asset */
     logoSrc: "/baggero-logo.png",
     markSrc: "/baggero-mark.svg",
   },

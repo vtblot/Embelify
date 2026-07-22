@@ -1,0 +1,12 @@
+Official Baggero lockup for the Embelify footer.
+
+Replace this stand-in with the real brand PNG (same filename):
+
+  public/baggero-logo.png
+
+Optional fallback mark if the PNG is missing:
+
+  public/baggero-mark.svg
+
+Do not ask the agent to recreate the logo from a chat screenshot —
+attach or drop the real source file here.
