@@ -20,28 +20,28 @@ export type SvgTraceOptions = {
 
 const COLOR_COUNT: Record<SvgColors, number> = {
   few: 6,
-  auto: 10,
-  many: 16,
+  auto: 12,
+  many: 24,
 };
 
 /**
  * Map UI presets → ImageTracer knobs.
- * Default "faithful" keeps more colors / detail so the SVG is closer to the PNG.
- * Clean + Few posterizes — fine for flat marks, not for shaded logos.
+ * Default "faithful" + many colors is the logo-SVG path for shaded marks.
+ * Clean + Few posterizes — only for flat 1–2 color marks.
  */
 export function resolveSvgTraceOptions(
   style: SvgStyle = "faithful",
   colors: SvgColors = "many",
 ): SvgTraceOptions {
-  const numberofcolors = COLOR_COUNT[colors] ?? 10;
+  const numberofcolors = COLOR_COUNT[colors] ?? 12;
 
   if (style === "faithful") {
     return {
-      ltres: 0.4,
-      qtres: 0.4,
+      ltres: 0.35,
+      qtres: 0.35,
       pathomit: 2,
       colorsampling: 2,
-      numberofcolors: Math.max(numberofcolors, 16),
+      numberofcolors: Math.max(numberofcolors, 24),
       strokewidth: 0,
       blurradius: 0,
       blurdelta: 20,
@@ -58,7 +58,7 @@ export function resolveSvgTraceOptions(
       qtres: 0.5,
       pathomit: 4,
       colorsampling: 2,
-      numberofcolors: Math.max(numberofcolors, 12),
+      numberofcolors: Math.max(numberofcolors, 16),
       strokewidth: 0,
       blurradius: 0,
       blurdelta: 20,

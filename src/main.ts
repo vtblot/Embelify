@@ -401,6 +401,11 @@ fileInput.addEventListener("change", () => {
 upscaleSelect.addEventListener("change", scheduleLiveRun);
 toSvgToggle.addEventListener("change", () => {
   syncSvgUi();
+  // Enabling SVG: steer toward logo-friendly Faithful + Many (not Clean/Few)
+  if (toSvgToggle.checked) {
+    if (svgStyleSelect.value === "clean") svgStyleSelect.value = "faithful";
+    if (svgColorsSelect.value === "few") svgColorsSelect.value = "many";
+  }
   scheduleLiveRun();
 });
 svgStyleSelect.addEventListener("change", scheduleLiveRun);

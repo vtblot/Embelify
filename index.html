@@ -112,8 +112,8 @@
             <div class="step-extra" id="svg-style-wrap" hidden>
               <label class="sub-label" for="svg_style" data-i18n="step3.style">Style</label>
               <select id="svg_style" name="svg_style">
-                <option value="faithful" selected data-i18n="step3.style.faithful">Faithful — closer to the PNG</option>
-                <option value="clean" data-i18n="step3.style.clean">Clean — flat logo, posterize</option>
+                <option value="faithful" selected data-i18n="step3.style.faithful">Faithful — logo SVG (shaded)</option>
+                <option value="clean" data-i18n="step3.style.clean">Clean — flat mark, posterize</option>
                 <option value="balanced" data-i18n="step3.style.balanced">Balanced</option>
                 <option value="detailed" data-i18n="step3.style.detailed">Detailed — keep fine edges</option>
               </select>
@@ -122,12 +122,12 @@
               <label class="sub-label" for="svg_colors" data-i18n="step3.colors">Colors</label>
               <select id="svg_colors" name="svg_colors">
                 <option value="few" data-i18n="step3.colors.few">Few (6)</option>
-                <option value="auto" data-i18n="step3.colors.auto">Auto (10)</option>
-                <option value="many" selected data-i18n="step3.colors.many">Many (16)</option>
+                <option value="auto" data-i18n="step3.colors.auto">Auto (12)</option>
+                <option value="many" selected data-i18n="step3.colors.many">Many (24)</option>
               </select>
             </div>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint">
-              For the same look as your source, keep SVG off and download the transparent PNG. Clean + Few flattens shaded logos.
+              Logo SVG recipe: Solid color + Exterior + Faithful + Many. Avoid Clean/Few on shaded logos.
             </p>
           </div>
         </fieldset>
