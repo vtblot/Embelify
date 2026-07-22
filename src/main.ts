@@ -178,7 +178,6 @@ function resetPreviewUi() {
   stepBadge.classList.remove("is-loading", "is-ready");
   downloadBtn.disabled = true;
   previewFrame?.style.removeProperty("--preview-ar");
-  previewFrame?.style.removeProperty("--preview-ar-n");
   setPreviewBusy(false);
 }
 
@@ -196,7 +195,6 @@ function assignSource(file: File | null) {
 function setPreviewAspect(width: number, height: number) {
   if (!previewFrame || width < 1 || height < 1) return;
   previewFrame.style.setProperty("--preview-ar", `${width} / ${height}`);
-  previewFrame.style.setProperty("--preview-ar-n", String(width / height));
 }
 
 async function waitForImgPaint(url: string): Promise<void> {
@@ -309,14 +307,6 @@ async function runLive(reason: "auto" | "manual" = "auto") {
   const signal = beginWork();
   submitBtn.disabled = true;
   downloadBtn.disabled = true;
-  // Size the frame from the source ASAP — avoids a giant 1:1 checker during load
-  try {
-    const probe = await createImageBitmap(file);
-    if (myGen === runGeneration) setPreviewAspect(probe.width, probe.height);
-    probe.close();
-  } catch {
-    /* keep CSS fallback ratio */
-  }
   preview.hidden = false;
   setBadge(t("badge.prep"), "loading", myGen);
   setStatus(reason === "auto" ? t("status.updating") : t("status.processing"));

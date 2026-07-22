@@ -129,7 +129,7 @@ body {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  grid-template-columns: 1.05fr 0.95fr;
   gap: clamp(1.25rem, 3vw, 2rem);
   align-items: start;
   animation: rise 0.8s 0.12s ease both;
@@ -537,30 +537,18 @@ select {
   top: 1.25rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: stretch;
   gap: 0.85rem;
-  width: 100%;
-  max-width: 100%;
-  min-height: min(68vh, 560px);
-  padding-block: 0.35rem;
-  box-sizing: border-box;
   animation: rise 0.55s ease both;
 }
 
 .preview-frame {
-  --preview-ar-n: 2;
   position: relative;
-  box-sizing: border-box;
-  /* Cap width from max-height × ratio so a 1:1 fallback never becomes a 600px square */
-  width: min(100%, calc(min(64vh, 560px) * var(--preview-ar-n)));
-  max-width: 100%;
-  max-height: min(64vh, 560px);
-  aspect-ratio: var(--preview-ar, 2 / 1);
-  height: auto;
-  min-height: 140px;
-  margin-inline: auto;
-  background: #c8d0ca;
+  width: 100%;
+  min-height: 160px;
+  /* Set from JS to match imported image — fallback square until first paint */
+  aspect-ratio: var(--preview-ar, 1);
+  max-height: min(62vh, 560px);
+  background: #0a100d;
   border: 1px solid var(--line);
   overflow: hidden;
   display: grid;
@@ -570,16 +558,15 @@ select {
 .checker {
   position: absolute;
   inset: 0;
-  /* Light checker so black wordmarks stay readable; white eyes still pop */
   background-image:
-    linear-gradient(45deg, #b4beb6 25%, transparent 25%),
-    linear-gradient(-45deg, #b4beb6 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #b4beb6 75%),
-    linear-gradient(-45deg, transparent 75%, #b4beb6 75%);
-  background-size: 18px 18px;
-  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
-  background-color: #d8e0da;
-  opacity: 1;
+    linear-gradient(45deg, #1a2620 25%, transparent 25%),
+    linear-gradient(-45deg, #1a2620 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a2620 75%),
+    linear-gradient(-45deg, transparent 75%, #1a2620 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  background-color: #121c17;
+  opacity: 0.9;
 }
 
 #preview-img,

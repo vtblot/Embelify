@@ -123,21 +123,12 @@ const stats = await page.evaluate(async () => {
   const oHole = ctx.getImageData(260, 80, 1, 1).data;
   const oStroke = ctx.getImageData(260, 80 - 38, 1, 1).data;
   const corner = ctx.getImageData(0, 0, 1, 1).data;
-  const frame = document.querySelector(".preview-frame");
-  const preview = document.querySelector(".preview");
-  const frameCs = getComputedStyle(frame);
-  const previewCs = getComputedStyle(preview);
-  const checkerCs = getComputedStyle(document.querySelector(".checker"));
   return {
     eyeL: [...eyeL],
     eyeR: [...eyeR],
     oHole: [...oHole],
     oStroke: [...oStroke],
     cornerA: corner[3],
-    frameMaxH: frameCs.maxHeight,
-    previewJustify: previewCs.justifyContent,
-    previewMinH: previewCs.minHeight,
-    checkerBg: checkerCs.backgroundColor,
   };
 });
 
@@ -148,14 +139,6 @@ if (stats.eyeR[3] < 200 || stats.eyeR[0] < 200) throw new Error("right eye lost:
 if (stats.oHole[3] > 40) throw new Error("O counter still opaque: " + stats.oHole);
 if (stats.oStroke[3] < 200 || stats.oStroke[0] > 80) {
   throw new Error("O stroke damaged: " + stats.oStroke);
-}
-if (!stats.previewJustify.includes("center")) {
-  throw new Error("preview not vertically centered: " + stats.previewJustify);
-}
-// Light checker — black wordmarks must remain readable
-const bgMatch = String(stats.checkerBg).match(/rgba?\(\s*(\d+)/i);
-if (!bgMatch || Number(bgMatch[1]) < 140) {
-  throw new Error("checker not light enough for dark logos: " + stats.checkerBg);
 }
 
 console.log("LETTER_HOLES_OK");
