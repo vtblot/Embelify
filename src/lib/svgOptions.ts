@@ -44,13 +44,27 @@ function lerp(a: number, b: number, t: number): number {
 
 /**
  * Map detail 1–10 → ImageTracer path tolerances.
- * Low detail = smoother / fewer nodes; high = follow fine edges.
+ * Logo uses a gentler omit curve so thin wordmark stems survive at mid detail.
+ * General keeps a wider range for photos.
  */
-function detailToTrace(detail: number): Pick<
+function detailToTrace(
+  detail: number,
+  mode: SvgMode,
+): Pick<
   SvgTraceOptions,
   "ltres" | "qtres" | "pathomit" | "linefilter" | "rightangleenhance"
 > {
   const t = (clamp(detail, 1, 10) - 1) / 9;
+  if (mode === "logo") {
+    // detail 5 ≈ old Logo baseline (pathomit~8, ltres~1)
+    return {
+      ltres: lerp(1.6, 0.4, t),
+      qtres: lerp(1.6, 0.4, t),
+      pathomit: Math.round(lerp(12, 2, t)),
+      linefilter: detail <= 5,
+      rightangleenhance: detail <= 7,
+    };
+  }
   return {
     ltres: lerp(2.4, 0.25, t),
     qtres: lerp(2.4, 0.25, t),
@@ -72,7 +86,7 @@ export function resolveSvgTraceOptions(
   const mode = controls.mode === "general" ? "general" : "logo";
   const detail = clamp(Math.round(controls.detail), 1, 10);
   let palette = clamp(Math.round(controls.palette), 2, 32);
-  const path = detailToTrace(detail);
+  const path = detailToTrace(detail, mode);
 
   if (mode === "logo") {
     // Logo flatten is built for a few tones — keep palette in 2–4

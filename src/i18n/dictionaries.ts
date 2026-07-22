@@ -153,7 +153,7 @@ export const en: Dict = {
   "step3.hint":
     "Palette levels = how many tones to keep after posterize (not brand color names). B&W logo: 2–4. Photo: 12–24.",
   "step3.hint.logo":
-    "Logo flattens to dark + white holes (eyes, letters). Palette is capped at 4. Raise detail for sharper edges.",
+    "Logo flattens to dark ink + white eyes (letter holes stay clear). Palette capped at 4. Mid detail keeps thin text; raise for sharper edges.",
   "step3.hint.general":
     "General keeps shading and many tones. Low detail = cleaner paths; high detail = more nodes. Use 8–16 levels for soft photos.",
   "actions.recompute": "Recompute",

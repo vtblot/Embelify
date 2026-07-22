@@ -1073,8 +1073,9 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
   let opaqueN = 0;
   let brightN = 0;
   let lumaSum = 0;
-  const interiorLumas: number[] = [];
-  const interiorRgb: Rgb[] = [];
+  // Dark-ink only — white eyes/counters must not skew the body color
+  const darkLumas: number[] = [];
+  const darkRgb: Rgb[] = [];
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1084,40 +1085,40 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
       const L = luma(data[i], data[i + 1], data[i + 2]);
       lumaSum += L;
       if (L > 180) brightN += 1;
+      if (L >= 110) continue;
       if (touchesTransparent(data, w, h, x, y, 2)) continue;
-      interiorLumas.push(L);
-      interiorRgb.push([data[i], data[i + 1], data[i + 2]]);
+      darkLumas.push(L);
+      darkRgb.push([data[i], data[i + 1], data[i + 2]]);
     }
   }
 
-  if (opaqueN < 32 || interiorLumas.length < 16) return canvas;
-  const coreMean =
-    interiorLumas.reduce((a, b) => a + b, 0) / interiorLumas.length;
+  if (opaqueN < 32 || darkLumas.length < 16) return canvas;
+  const coreMean = darkLumas.reduce((a, b) => a + b, 0) / darkLumas.length;
   const meanL = lumaSum / opaqueN;
   // Cream / white marks — flattening would destroy the subject
   if (coreMean > 140 || meanL > 165 || brightN / opaqueN > 0.55) {
     return canvas;
   }
 
-  // Darkest quartile of interior = true body (ignore lit mid-grays)
-  const order = interiorLumas
+  // Darkest quartile of dark ink = true body (ignore lit mid-grays)
+  const order = darkLumas
     .map((_, i) => i)
-    .sort((a, b) => interiorLumas[a] - interiorLumas[b]);
+    .sort((a, b) => darkLumas[a] - darkLumas[b]);
   const q = Math.max(8, Math.floor(order.length * 0.25));
   let darkR = 0;
   let darkG = 0;
   let darkB = 0;
   for (let k = 0; k < q; k++) {
-    const c = interiorRgb[order[k]];
+    const c = darkRgb[order[k]];
     darkR += c[0];
     darkG += c[1];
     darkB += c[2];
   }
-  // Lift slightly off pure black so ImageTracer won't merge body with a=0 RGB(0,0,0)
+  // Match Logo fixed palette body (~28) so thin stems don't fall into "hole" bucket
   const coreRgb: Rgb = [
-    Math.max(18, Math.round(darkR / q)),
-    Math.max(18, Math.round(darkG / q)),
-    Math.max(18, Math.round(darkB / q)),
+    Math.max(28, Math.min(42, Math.round(darkR / q))),
+    Math.max(28, Math.min(42, Math.round(darkG / q))),
+    Math.max(28, Math.min(42, Math.round(darkB / q))),
   ];
 
   // Cream eyes/nose often ~180–245 after Lanczos ×4. Keep vs dark body;
@@ -1125,13 +1126,17 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
   const FEATURE_HI = Math.max(165, Math.min(200, Math.round(coreMean + 70)));
   const FEATURE_LO = Math.max(140, Math.min(FEATURE_HI - 10, Math.round(coreMean + 50)));
 
-  // Label bright candidates; keep only components fully enclosed by dark body
+  // Label bright candidates; keep only small enclosed islands as white (eyes/nose).
+  // Large enclosed whites (letter counters) → transparent holes, not opaque fill.
   const brightLabel = new Int32Array(w * h);
   const queue = new Int32Array(w * h);
   let nextLabel = 1;
-  const keepLabels = new Set<number>();
+  const keepWhite = new Set<number>();
+  const punchClear = new Set<number>();
   // Scale-aware: ear-tip AA sits near the cutout edge; letter counters do not
   const rimProbe = Math.max(5, Math.round(Math.min(w, h) * 0.02));
+  const minSide = Math.min(w, h);
+  const eyeArea = Math.floor(Math.PI * Math.max(7, minSide * 0.09) ** 2);
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1183,10 +1188,10 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
         }
       }
 
-      // Keep enclosed bright islands: eyes, nose, letter counters (B/A/O…).
-      // Drop rim-adjacent blobs (ear-tip AA) and tiny crumbs.
+      // Enclosed bright: small = eyes (white); large = letter counters (clear)
       if (!touchesClear && !nearRim && size >= 6) {
-        keepLabels.add(nextLabel);
+        if (size <= eyeArea) keepWhite.add(nextLabel);
+        else punchClear.add(nextLabel);
       }
       nextLabel += 1;
     }
@@ -1194,7 +1199,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
 
   for (let i = 0; i < w * h; i++) {
     const j = i * 4;
-    if (data[j + 3] < 16) {
+    if (data[j + 3] < 16 || punchClear.has(brightLabel[i])) {
       // Sentinel RGB on clear pixels — keeps dark body out of the tracer's "hole" bucket
       data[j] = 0;
       data[j + 1] = 255;
@@ -1202,7 +1207,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
       data[j + 3] = 0;
       continue;
     }
-    if (keepLabels.has(brightLabel[i])) {
+    if (keepWhite.has(brightLabel[i])) {
       data[j] = 255;
       data[j + 1] = 255;
       data[j + 2] = 255;
