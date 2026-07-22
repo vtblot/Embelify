@@ -37,6 +37,7 @@ const fileName = document.getElementById("file-name") as HTMLSpanElement;
 const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLParagraphElement;
 const preview = document.getElementById("preview") as HTMLElement;
+const previewFrame = preview.querySelector(".preview-frame") as HTMLElement;
 const previewImg = document.getElementById("preview-img") as HTMLImageElement;
 const previewSvg = document.getElementById("preview-svg") as HTMLDivElement;
 const previewLabel = document.getElementById("preview-label") as HTMLParagraphElement;
@@ -145,6 +146,7 @@ function resetPreviewUi() {
   stepBadge.hidden = true;
   stepBadge.classList.remove("is-loading", "is-ready");
   downloadBtn.disabled = true;
+  previewFrame?.style.removeProperty("--preview-ar");
 }
 
 function clearUiAssets() {
@@ -156,6 +158,11 @@ function clearUiAssets() {
 function assignSource(file: File | null) {
   setSourceFile(file);
   showFileName(file);
+}
+
+function setPreviewAspect(width: number, height: number) {
+  if (!previewFrame || width < 1 || height < 1) return;
+  previewFrame.style.setProperty("--preview-ar", `${width} / ${height}`);
 }
 
 async function waitForImgPaint(url: string): Promise<void> {
@@ -177,6 +184,9 @@ async function waitForImgPaint(url: string): Promise<void> {
       previewImg.onerror = () => resolve();
     });
   }
+  if (previewImg.naturalWidth > 0 && previewImg.naturalHeight > 0) {
+    setPreviewAspect(previewImg.naturalWidth, previewImg.naturalHeight);
+  }
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
@@ -186,6 +196,8 @@ async function showCanvasPreview(
   generation: number,
 ) {
   if (generation !== runGeneration) return;
+
+  setPreviewAspect(canvas.width, canvas.height);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("preview"))), "image/png");
@@ -218,6 +230,14 @@ function showSvgPreview(svg: string, generation: number) {
   previewSvg.hidden = false;
   preview.hidden = false;
   downloadBtn.disabled = false;
+
+  const vb = svg.match(/viewBox=["']\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s*["']/i);
+  if (vb) {
+    const w = Number(vb[3]);
+    const h = Number(vb[4]);
+    if (w > 0 && h > 0) setPreviewAspect(w, h);
+  }
+
   setBadge(t(STEP_READY_KEY.svg), "ready", generation);
   previewLabel.textContent = t("preview.svgReady");
 }
@@ -298,9 +318,11 @@ async function runLive(reason: "auto" | "manual" = "auto") {
       if (myGen !== runGeneration) return;
       downloadBtn.disabled = false;
       setBadge(t(STEP_READY_KEY.done), "ready", myGen);
-      previewLabel.textContent = opts.removeBg
-        ? t("preview.pngReady")
-        : t("preview.resultReady");
+      const nw = previewImg.naturalWidth;
+      const nh = previewImg.naturalHeight;
+      const sizeNote = nw > 0 && nh > 0 ? ` · ${nw}×${nh}` : "";
+      previewLabel.textContent =
+        (opts.removeBg ? t("preview.pngReady") : t("preview.resultReady")) + sizeNote;
     }
 
     downloadBtn.disabled = false;

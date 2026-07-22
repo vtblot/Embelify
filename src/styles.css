@@ -484,9 +484,11 @@ select {
 
 .preview-frame {
   position: relative;
-  min-height: 280px;
-  aspect-ratio: 1;
-  max-height: min(62vh, 520px);
+  width: 100%;
+  min-height: 160px;
+  /* Set from JS to match imported image — fallback square until first paint */
+  aspect-ratio: var(--preview-ar, 1);
+  max-height: min(62vh, 560px);
   background: #0a100d;
   border: 1px solid var(--line);
   overflow: hidden;
