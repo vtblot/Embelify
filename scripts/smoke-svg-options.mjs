@@ -1,8 +1,17 @@
 /** Mirrors src/lib/svgOptions.ts — keep in sync when presets change. */
-function resolveSvgTraceOptions(style = "clean", colors = "auto") {
+function resolveSvgTraceOptions(style = "faithful", colors = "many") {
   const COLOR_COUNT = { few: 6, auto: 10, many: 16 };
   const numberofcolors = COLOR_COUNT[colors] ?? 10;
 
+  if (style === "faithful") {
+    return {
+      pathomit: 2,
+      numberofcolors: Math.max(numberofcolors, 16),
+      linefilter: false,
+      colorsampling: 2,
+      blurradius: 0,
+    };
+  }
   if (style === "detailed") {
     return {
       pathomit: 4,
@@ -31,20 +40,20 @@ function resolveSvgTraceOptions(style = "clean", colors = "auto") {
   };
 }
 
+const faithful = resolveSvgTraceOptions("faithful", "many");
 const cleanFew = resolveSvgTraceOptions("clean", "few");
-const clean = resolveSvgTraceOptions("clean", "auto");
 const detailed = resolveSvgTraceOptions("detailed", "many");
 
+if (faithful.numberofcolors < 16) throw new Error(`faithful colors: ${faithful.numberofcolors}`);
+if (faithful.pathomit > 4) throw new Error(`faithful pathomit too high: ${faithful.pathomit}`);
+if (faithful.linefilter) throw new Error("faithful should not linefilter");
 if (cleanFew.numberofcolors !== 6) throw new Error(`few colors: ${cleanFew.numberofcolors}`);
 if (cleanFew.pathomit > 12) throw new Error(`few pathomit too high: ${cleanFew.pathomit}`);
-if (clean.blurradius !== 0) throw new Error("clean must not pre-blur (creates halo)");
-if (!clean.linefilter) throw new Error("clean should linefilter");
-if (detailed.numberofcolors < 12) throw new Error(`detailed colors: ${detailed.numberofcolors}`);
-if (detailed.pathomit > cleanFew.pathomit) throw new Error("detailed should omit fewer paths");
+if (detailed.pathomit > cleanFew.pathomit) throw new Error("detailed should omit fewer than clean");
 
 console.log("SVG_OPTIONS_OK", {
+  faithful: faithful.numberofcolors,
   few: cleanFew.numberofcolors,
   fewOmit: cleanFew.pathomit,
-  auto: clean.numberofcolors,
   detailed: detailed.numberofcolors,
 });

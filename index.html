@@ -74,8 +74,8 @@
             <div class="step-extra" id="bg-mode-wrap">
               <label class="sub-label" for="bg_mode" data-i18n="step2.how">How?</label>
               <select id="bg_mode" name="bg_mode">
-                <option value="auto" selected data-i18n="step2.auto">Auto — detect logo or photo</option>
-                <option value="chroma" data-i18n="step2.chroma">Solid color — logos, black backgrounds, grids…</option>
+                <option value="auto" data-i18n="step2.auto">Auto — detect logo or photo</option>
+                <option value="chroma" selected data-i18n="step2.chroma">Solid color — logos, black backgrounds, grids…</option>
                 <option value="ai" data-i18n="step2.ai">Photo — cut out a person / object</option>
               </select>
             </div>
@@ -108,11 +108,12 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc" data-i18n="step3.desc">Vectorizes logos / simple shapes. Not suited to photos.</p>
+            <p class="step-desc" data-i18n="step3.desc">Vectorizes logos / simple shapes. Gradients are simplified — leave off for a PNG that matches your source.</p>
             <div class="step-extra" id="svg-style-wrap" hidden>
               <label class="sub-label" for="svg_style" data-i18n="step3.style">Style</label>
               <select id="svg_style" name="svg_style">
-                <option value="clean" selected data-i18n="step3.style.clean">Clean — logos, few paths</option>
+                <option value="faithful" selected data-i18n="step3.style.faithful">Faithful — closer to the PNG</option>
+                <option value="clean" data-i18n="step3.style.clean">Clean — flat logo, posterize</option>
                 <option value="balanced" data-i18n="step3.style.balanced">Balanced</option>
                 <option value="detailed" data-i18n="step3.style.detailed">Detailed — keep fine edges</option>
               </select>
@@ -121,12 +122,12 @@
               <label class="sub-label" for="svg_colors" data-i18n="step3.colors">Colors</label>
               <select id="svg_colors" name="svg_colors">
                 <option value="few" data-i18n="step3.colors.few">Few (6)</option>
-                <option value="auto" selected data-i18n="step3.colors.auto">Auto (10)</option>
-                <option value="many" data-i18n="step3.colors.many">Many (16)</option>
+                <option value="auto" data-i18n="step3.colors.auto">Auto (10)</option>
+                <option value="many" selected data-i18n="step3.colors.many">Many (16)</option>
               </select>
             </div>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint">
-              Clean + few colors = flatter logo SVG. Turn on transparent background first to avoid tracing crumbs.
+              For the same look as your source, keep SVG off and download the transparent PNG. Clean + Few flattens shaded logos.
             </p>
           </div>
         </fieldset>
