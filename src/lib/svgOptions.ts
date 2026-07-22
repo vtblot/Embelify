@@ -81,7 +81,7 @@ function detailToTrace(
  * - General: full 2–32 levels for photos / multi-color art.
  */
 export function resolveSvgTraceOptions(
-  controls: SvgSliderControls = { mode: "logo", detail: 5, palette: 3 },
+  controls: SvgSliderControls = { mode: "logo", detail: 6, palette: 3 },
 ): SvgTraceOptions {
   const mode = controls.mode === "general" ? "general" : "logo";
   const detail = clamp(Math.round(controls.detail), 1, 10);
@@ -143,7 +143,7 @@ export function controlsFromLegacy(
 ): SvgSliderControls {
   const colorMap: Record<SvgColors, number> = { few: 3, auto: 12, many: 24 };
   if (style === "logo" || !style) {
-    return { mode: "logo", detail: 5, palette: colorMap[colors ?? "few"] ?? 3 };
+    return { mode: "logo", detail: 6, palette: colorMap[colors ?? "few"] ?? 3 };
   }
   if (style === "clean") {
     return { mode: "general", detail: 3, palette: colorMap[colors ?? "few"] ?? 6 };

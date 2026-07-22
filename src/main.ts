@@ -62,6 +62,9 @@ const svgPaletteInput = document.getElementById("svg_palette") as HTMLInputEleme
 const svgPaletteWrap = document.getElementById("svg-palette-wrap") as HTMLElement;
 const svgPaletteValue = document.getElementById("svg-palette-value") as HTMLElement;
 const svgHint = document.getElementById("svg-hint") as HTMLParagraphElement;
+const svgRecipesWrap = document.getElementById("svg-recipes-wrap") as HTMLElement;
+const svgPaletteLow = document.getElementById("svg-palette-low") as HTMLElement;
+const svgPaletteHigh = document.getElementById("svg-palette-high") as HTMLElement;
 const langSelect = document.getElementById("lang-select") as HTMLSelectElement;
 const sisterLink = document.getElementById("sister-link") as HTMLAnchorElement;
 
@@ -101,6 +104,33 @@ function syncBgUi() {
   }
 }
 
+const SVG_RECIPES: Record<
+  string,
+  { mode: SvgMode; detail: number; palette: number }
+> = {
+  logo: { mode: "logo", detail: 6, palette: 3 },
+  "logo-sharp": { mode: "logo", detail: 8, palette: 3 },
+  photo: { mode: "general", detail: 7, palette: 16 },
+};
+
+function applySvgRecipe(id: string, run = true) {
+  const recipe = SVG_RECIPES[id];
+  if (!recipe) return;
+  toSvgToggle.checked = true;
+  svgModeSelect.value = recipe.mode;
+  svgDetailInput.value = String(recipe.detail);
+  svgPaletteInput.value = String(recipe.palette);
+  syncSvgUi();
+  markActiveRecipe(id);
+  if (run) scheduleLiveRun();
+}
+
+function markActiveRecipe(id: string | null) {
+  document.querySelectorAll<HTMLButtonElement>("[data-svg-recipe]").forEach((btn) => {
+    btn.classList.toggle("is-active", id !== null && btn.dataset.svgRecipe === id);
+  });
+}
+
 function syncSvgUi() {
   const svgOn = toSvgToggle.checked;
   const mode = svgModeSelect.value as SvgMode;
@@ -108,22 +138,37 @@ function syncSvgUi() {
   svgDetailWrap.hidden = !svgOn;
   svgPaletteWrap.hidden = !svgOn;
   svgHint.hidden = !svgOn;
+  if (svgRecipesWrap) svgRecipesWrap.hidden = !svgOn;
 
   if (svgOn) {
     // Logo mode: palette max 4 (B&W / gray marks)
     if (mode === "logo") {
       svgPaletteInput.max = "4";
       if (Number(svgPaletteInput.value) > 4) svgPaletteInput.value = "3";
+      if (svgPaletteHigh) svgPaletteHigh.textContent = t("step3.palette.high.logo");
     } else {
       const wasLogoCap = svgPaletteInput.max === "4";
       svgPaletteInput.max = "32";
       if (wasLogoCap && Number(svgPaletteInput.value) <= 4) {
         svgPaletteInput.value = "12";
       }
+      if (svgPaletteHigh) svgPaletteHigh.textContent = t("step3.palette.high");
     }
+    if (svgPaletteLow) svgPaletteLow.textContent = t("step3.palette.low");
     svgDetailValue.textContent = svgDetailInput.value;
     svgPaletteValue.textContent = svgPaletteInput.value;
     svgHint.textContent = t(mode === "logo" ? "step3.hint.logo" : "step3.hint.general");
+
+    // Highlight matching recipe if sliders match a preset
+    const match = Object.entries(SVG_RECIPES).find(
+      ([, r]) =>
+        r.mode === mode &&
+        r.detail === Number(svgDetailInput.value) &&
+        r.palette === Number(svgPaletteInput.value),
+    );
+    markActiveRecipe(match?.[0] ?? null);
+  } else {
+    markActiveRecipe(null);
   }
 }
 
@@ -173,6 +218,7 @@ function resetPreviewUi() {
   previewImg.removeAttribute("src");
   previewSvg.hidden = true;
   previewSvg.innerHTML = "";
+  previewFrame?.classList.remove("is-svg");
   stepBadge.hidden = true;
   stepBadge.classList.remove("is-loading", "is-ready");
   downloadBtn.disabled = true;
@@ -242,6 +288,7 @@ async function showCanvasPreview(
   });
   previewSvg.hidden = true;
   previewSvg.innerHTML = "";
+  previewFrame?.classList.remove("is-svg");
   preview.hidden = false;
   downloadBtn.disabled = true;
 
@@ -260,6 +307,7 @@ function showSvgPreview(svg: string, generation: number) {
   previewSvg.innerHTML = svg;
   previewSvg.hidden = false;
   preview.hidden = false;
+  previewFrame?.classList.add("is-svg");
   downloadBtn.disabled = false;
 
   const vb = svg.match(/viewBox=["']\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s*["']/i);
@@ -348,6 +396,7 @@ async function runLive(reason: "auto" | "manual" = "auto") {
       });
       previewSvg.hidden = true;
       previewSvg.innerHTML = "";
+      previewFrame?.classList.remove("is-svg");
       preview.hidden = false;
       await waitForImgPaint(previewUrl);
       if (myGen !== runGeneration) return;
@@ -484,11 +533,19 @@ svgModeSelect.addEventListener("change", () => {
 });
 svgDetailInput.addEventListener("input", () => {
   svgDetailValue.textContent = svgDetailInput.value;
+  markActiveRecipe(null);
   scheduleLiveRun();
 });
 svgPaletteInput.addEventListener("input", () => {
   svgPaletteValue.textContent = svgPaletteInput.value;
+  markActiveRecipe(null);
   scheduleLiveRun();
+});
+document.querySelectorAll<HTMLButtonElement>("[data-svg-recipe]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const id = btn.dataset.svgRecipe;
+    if (id) applySvgRecipe(id);
+  });
 });
 
 downloadBtn.addEventListener("click", () => {

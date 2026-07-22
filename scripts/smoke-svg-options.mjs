@@ -42,7 +42,7 @@ function resolveSvgTraceOptions({ mode = "logo", detail = 5, palette = 3 } = {})
   };
 }
 
-const logo = resolveSvgTraceOptions({ mode: "logo", detail: 5, palette: 3 });
+const logo = resolveSvgTraceOptions({ mode: "logo", detail: 6, palette: 3 });
 const logoFine = resolveSvgTraceOptions({ mode: "logo", detail: 9, palette: 2 });
 const logoGray = resolveSvgTraceOptions({ mode: "logo", detail: 4, palette: 4 });
 const general = resolveSvgTraceOptions({ mode: "general", detail: 8, palette: 16 });
@@ -54,9 +54,9 @@ if (logoGray.numberofcolors !== 4) throw new Error(`logo gray: ${logoGray.number
 if (general.numberofcolors !== 16) throw new Error(`general colors: ${general.numberofcolors}`);
 if (general.pathomit >= simple.pathomit) throw new Error("high detail should omit fewer paths");
 if (simple.ltres <= general.ltres) throw new Error("low detail should be smoother (higher ltres)");
-// Logo mid detail must keep thin stems (old baseline pathomit≈8)
-if (logo.pathomit < 6 || logo.pathomit > 9) {
-  throw new Error(`logo detail=5 pathomit should be ~7–8, got ${logo.pathomit}`);
+// Logo recommended recipe (detail 6) must keep thin stems
+if (logo.pathomit < 5 || logo.pathomit > 8) {
+  throw new Error(`logo detail=6 pathomit should be ~6–7, got ${logo.pathomit}`);
 }
 if (logoFine.pathomit >= logo.pathomit) {
   throw new Error("logo fine detail should omit fewer paths");

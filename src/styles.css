@@ -571,6 +571,50 @@ select {
   opacity: 0.9;
 }
 
+/* Black SVG marks vanish on the dark checker — use a light plate for vector preview */
+.preview-frame.is-svg .checker {
+  background-image:
+    linear-gradient(45deg, #c5cec8 25%, transparent 25%),
+    linear-gradient(-45deg, #c5cec8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #c5cec8 75%),
+    linear-gradient(-45deg, transparent 75%, #c5cec8 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+  background-color: #e4ebe6;
+  opacity: 1;
+}
+
+.svg-recipes .recipe-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.recipe {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: rgba(14, 28, 22, 0.65);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.recipe:hover {
+  border-color: rgba(232, 255, 107, 0.45);
+}
+
+.recipe.is-active {
+  border-color: var(--accent);
+  background: rgba(232, 255, 107, 0.12);
+  color: var(--accent);
+}
+
 #preview-img,
 .svg-host {
   position: relative;

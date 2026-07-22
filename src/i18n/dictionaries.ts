@@ -34,12 +34,18 @@ export type Dict = {
   "step3.mode": string;
   "step3.mode.logo": string;
   "step3.mode.general": string;
+  "step3.recipes": string;
+  "step3.recipes.aria": string;
+  "step3.recipe.logo": string;
+  "step3.recipe.logoSharp": string;
+  "step3.recipe.photo": string;
   "step3.detail": string;
   "step3.detail.low": string;
   "step3.detail.high": string;
   "step3.palette": string;
   "step3.palette.low": string;
   "step3.palette.high": string;
+  "step3.palette.high.logo": string;
   "step3.hint": string;
   "step3.hint.logo": string;
   "step3.hint.general": string;
@@ -140,20 +146,26 @@ export const en: Dict = {
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "Vectorize the result. Logo mode for B&W / gray marks; General for photos and multi-color art. Sliders set contour detail and palette levels.",
+    "Vectorize the result. Start with a recipe below, then tweak the sliders if needed.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — black / white / gray marks",
   "step3.mode.general": "General — photos & multi-color",
+  "step3.recipes": "Start with",
+  "step3.recipes.aria": "SVG recipes",
+  "step3.recipe.logo": "Logo B&W (recommended)",
+  "step3.recipe.logoSharp": "Logo — sharper text",
+  "step3.recipe.photo": "Photo / shaded",
   "step3.detail": "Contour detail",
-  "step3.detail.low": "Simple",
-  "step3.detail.high": "Fine",
+  "step3.detail.low": "Simpler paths",
+  "step3.detail.high": "Follow fine strokes",
   "step3.palette": "Palette levels",
   "step3.palette.low": "2 (B&W)",
   "step3.palette.high": "32 (rich)",
+  "step3.palette.high.logo": "4 (gray)",
   "step3.hint":
     "Palette levels = how many tones to keep after posterize (not brand color names). B&W logo: 2–4. Photo: 12–24.",
   "step3.hint.logo":
-    "Logo flattens to dark ink + white eyes (letter holes stay clear). Palette capped at 4. Mid detail keeps thin text; raise for sharper edges.",
+    "Click “Logo B&W” first. Detail = how closely paths follow thin letters. Palette = tone count (Logo max 4). Eyes stay white; letter holes stay clear.",
   "step3.hint.general":
     "General keeps shading and many tones. Low detail = cleaner paths; high detail = more nodes. Use 8–16 levels for soft photos.",
   "actions.recompute": "Recompute",
@@ -265,20 +277,26 @@ export const fr: Dict = {
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Vectorise le résultat. Mode Logo pour aplats N&B / gris ; Général pour photos et images multicolores. Les curseurs règlent le détail et les niveaux de palette.",
+    "Vectorise le résultat. Commencez par une recette ci-dessous, puis ajustez les curseurs si besoin.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — aplats noir / blanc / gris",
   "step3.mode.general": "Général — photos & multicolore",
+  "step3.recipes": "Pour commencer",
+  "step3.recipes.aria": "Recettes SVG",
+  "step3.recipe.logo": "Logo N&B (recommandé)",
+  "step3.recipe.logoSharp": "Logo — texte plus net",
+  "step3.recipe.photo": "Photo / ombré",
   "step3.detail": "Détail des contours",
-  "step3.detail.low": "Simple",
-  "step3.detail.high": "Fin",
+  "step3.detail.low": "Chemins simples",
+  "step3.detail.high": "Suit les traits fins",
   "step3.palette": "Niveaux de palette",
   "step3.palette.low": "2 (N&B)",
   "step3.palette.high": "32 (riche)",
+  "step3.palette.high.logo": "4 (gris)",
   "step3.hint":
     "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo N&B : 2–4. Photo : 12–24.",
   "step3.hint.logo":
-    "Logo aplatit en encre sombre + yeux blancs (trous de lettres restent vides). Palette plafonnée à 4. Détail moyen pour le texte fin ; montez pour des contours plus nets.",
+    "Cliquez d’abord sur « Logo N&B ». Détail = précision sur les lettres fines. Palette = nombre de tons (max 4 en Logo). Yeux blancs ; trous de lettres vides.",
   "step3.hint.general":
     "Général conserve ombres et tons. Peu de détail = chemins plus propres ; beaucoup = plus de nœuds. Photos douces : 8–16 niveaux.",
   "actions.recompute": "Recalculer",
