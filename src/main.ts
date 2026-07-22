@@ -13,6 +13,7 @@ import {
   preloadModels,
   runPipeline,
   type BgMode,
+  type CutScope,
   type EdgeTighten,
   type PipelineStep,
   type UpscaleFactor,
@@ -45,6 +46,8 @@ const bgModeSelect = document.getElementById("bg_mode") as HTMLSelectElement;
 const bgModeWrap = document.getElementById("bg-mode-wrap") as HTMLElement;
 const edgeTightenSelect = document.getElementById("edge_tighten") as HTMLSelectElement;
 const edgeTightenWrap = document.getElementById("edge-tighten-wrap") as HTMLElement;
+const cutScopeSelect = document.getElementById("cut_scope") as HTMLSelectElement;
+const cutScopeWrap = document.getElementById("cut-scope-wrap") as HTMLElement;
 const bgHint = document.getElementById("bg-hint") as HTMLParagraphElement;
 const upscaleSelect = document.getElementById("upscale") as HTMLSelectElement;
 const toSvgToggle = document.getElementById("to_svg") as HTMLInputElement;
@@ -78,13 +81,12 @@ const BG_HINT_KEY: Record<BgMode, Parameters<typeof t>[0]> = {
 
 function syncBgUi() {
   const rembgOn = removeBgToggle.checked;
-  const mode = bgModeSelect.value as BgMode;
   bgModeWrap.hidden = !rembgOn;
-  // Edge cleanup applies to solid-color and as a post-pass after Photo IA
   edgeTightenWrap.hidden = !rembgOn;
+  cutScopeWrap.hidden = !rembgOn;
   bgHint.hidden = !rembgOn;
   if (rembgOn) {
-    bgHint.textContent = t(BG_HINT_KEY[mode] ?? "step2.hint.chroma");
+    bgHint.textContent = t(BG_HINT_KEY[bgModeSelect.value as BgMode] ?? "step2.hint.chroma");
   }
 }
 
@@ -207,6 +209,7 @@ function readOptions() {
     removeBg: removeBgToggle.checked,
     bgMode: bgModeSelect.value as BgMode,
     edgeTighten: edgeTightenSelect.value as EdgeTighten,
+    cutScope: cutScopeSelect.value as CutScope,
     toSvg: toSvgToggle.checked,
   };
 }
@@ -336,6 +339,7 @@ bgModeSelect.addEventListener("change", () => {
   scheduleLiveRun();
 });
 edgeTightenSelect.addEventListener("change", scheduleLiveRun);
+cutScopeSelect.addEventListener("change", scheduleLiveRun);
 
 ["dragenter", "dragover"].forEach((evt) => {
   dropzone.addEventListener(evt, (e) => {

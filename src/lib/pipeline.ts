@@ -1,10 +1,17 @@
-import { cleanupCutoutEdges, looksLikeFlatGraphic, removeSolidBackground, type EdgeTighten } from "./chroma";
+import {
+  applyCutScope,
+  cleanupCutoutEdges,
+  looksLikeFlatGraphic,
+  removeSolidBackground,
+  type CutScope,
+  type EdgeTighten,
+} from "./chroma";
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
 
 export type UpscaleFactor = 1 | 2 | 4;
 /** auto: fond uni pour logos/aplats, IA pour photos */
 export type BgMode = "auto" | "chroma" | "ai";
-export type { EdgeTighten };
+export type { CutScope, EdgeTighten };
 
 export type PipelineStep = "source" | "upscale" | "background" | "svg" | "done";
 
@@ -12,8 +19,10 @@ export type PipelineOptions = {
   upscale: UpscaleFactor;
   removeBg: boolean;
   bgMode?: BgMode;
-  /** Chroma / logo edge cleanup strength (ignored for AI cutout). */
+  /** Chroma / logo edge cleanup strength. */
   edgeTighten?: EdgeTighten;
+  /** exterior = keep eyes/holes; interior = also clear enclosed bg */
+  cutScope?: CutScope;
   toSvg: boolean;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
@@ -59,6 +68,16 @@ function wipeCanvas(canvas: HTMLCanvasElement | null | undefined) {
   if (!canvas) return;
   canvas.width = 0;
   canvas.height = 0;
+}
+
+function cloneCanvas(source: HTMLCanvasElement): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  ctx.drawImage(source, 0, 0);
+  return canvas;
 }
 
 function bitmapToCanvas(bitmap: ImageBitmap): HTMLCanvasElement {
@@ -241,6 +260,9 @@ async function removeBackgroundAi(
   // (hair / soft photo mattes must not be hardened).
   const logoLike = looksLikeFlatGraphic(canvas);
   const edge: EdgeTighten = opts.edgeTighten ?? "normal";
+  const scope: CutScope = opts.cutScope ?? "exterior";
+  // Keep original pixels to restore white eyes / interior details
+  const original = cloneCanvas(canvas);
 
   const run = async (device: "gpu" | "cpu") => {
     const inputBlob = await canvasToBlob(canvas, "image/png");
@@ -265,14 +287,24 @@ async function removeBackgroundAi(
       progress(opts, "GPU indisponible — bascule CPU…");
       cutout = await run("cpu");
     } else {
+      wipeCanvas(original);
       throw err;
     }
   }
 
   wipeCanvas(canvas);
   const bitmap = await createImageBitmap(cutout);
-  const raw = bitmapToCanvas(bitmap);
+  let raw = bitmapToCanvas(bitmap);
   bitmap.close();
+
+  if (scope === "exterior") {
+    progress(opts, "Contours extérieurs — restauration des détails intérieurs…");
+    const restored = applyCutScope(raw, original, "exterior");
+    wipeCanvas(raw);
+    raw = restored;
+  }
+  wipeCanvas(original);
+
   if (logoLike || edge === "tight") {
     const cleaned = cleanupCutoutEdges(raw, edge, null);
     wipeCanvas(raw);
@@ -303,6 +335,7 @@ async function removeBackgroundFromCanvas(
     progress(opts, "Suppression du fond uni (flood-fill depuis les bords)…");
     const out = removeSolidBackground(canvas, {
       edge: opts.edgeTighten ?? "normal",
+      scope: opts.cutScope ?? "exterior",
     });
     wipeCanvas(canvas);
     return out;

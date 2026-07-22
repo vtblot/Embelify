@@ -86,6 +86,13 @@
                 <option value="tight" data-i18n="step2.edges.tight">Tighter — crop ~5px fringe / arcs</option>
               </select>
             </div>
+            <div class="step-extra" id="cut-scope-wrap">
+              <label class="sub-label" for="cut_scope" data-i18n="step2.scope">Contours</label>
+              <select id="cut_scope" name="cut_scope">
+                <option value="exterior" selected data-i18n="step2.scope.exterior">Exterior only — keep eyes / holes</option>
+                <option value="interior" data-i18n="step2.scope.interior">Exterior + interior — also clear holes</option>
+              </select>
+            </div>
             <p class="step-hint" id="bg-hint" data-i18n="step2.hint.chroma">Best for logos / flat graphics: removes a single background color (often black).</p>
           </div>
 
