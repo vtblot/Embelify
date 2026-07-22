@@ -1608,7 +1608,7 @@ export type EdgeTighten = "normal" | "tight";
 export type ChromaOptions = {
   /** How aggressively to crop fringe after keying. */
   edge?: EdgeTighten;
-  /** exterior = keep enclosed details; interior = also key enclosed bg pockets */
+  /** exterior = keep closed holes; interior = clear them; auto = icon eyes + letter holes */
   scope?: CutScope;
 };
 
