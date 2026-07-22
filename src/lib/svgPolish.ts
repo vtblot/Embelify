@@ -30,7 +30,7 @@ function snapFillColor(fill: string): string {
   const c = parseRgb(trimmed);
   if (!c) return fill;
   const L = luma(c.r, c.g, c.b);
-  // Only snap near-black / near-white — mid-gray face banding must survive.
+  // Only snap near-black / near-white — mid-gray shading must survive.
   if (L <= 40) return "#000000";
   if (L >= 220) return "#ffffff";
   return fill;

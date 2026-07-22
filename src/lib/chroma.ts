@@ -1048,8 +1048,8 @@ export function scrubMismatchedEdgeColors(
  *
  * - Always: hard matte, white eyes/nose kept, large letter counters cleared.
  * - keepGray false (palette ≤3): snap all ink to pure black (flat N&B).
- * - keepGray true (palette ≥4): keep one mid-gray tone for face banding /
- *   soft shading on the pictogram (BAGGERO cat), while stems stay black.
+ * - keepGray true (palette ≥4): keep one mid-gray tone for soft shading on
+ *   the pictogram, while stems stay black.
  */
 export type FlattenLogoOptions = {
   keepGray?: boolean;
@@ -1091,12 +1091,12 @@ export function flattenLogoForSvg(
   if (opaqueN < 32 || inkLumas.length < 16) return canvas;
   const orderedInk = [...inkLumas].sort((a, b) => a - b);
   const nInk = orderedInk.length;
-  // Dark body from lower percentile — gray face banding is often a minority
-  // of ink (cat << wordmark), so p85 would still be body and miss it.
+  // Dark body from lower percentile — mid-gray shading is often a minority of ink
+  // (pictogram vs wordmark), so a high percentile would still land on the body.
   const coreMean = orderedInk[Math.floor(nInk * 0.12)]!;
-  const lightInk = orderedInk.filter((L) => L >= coreMean + 15);
+  const lightInk = orderedInk.filter((L) => L >= coreMean + 12);
   const grayMean = lightInk.length
-    ? lightInk[Math.floor(lightInk.length * 0.5)]!
+    ? lightInk[Math.min(lightInk.length - 1, Math.floor(lightInk.length * 0.7))]!
     : coreMean;
   const meanL = lumaSum / opaqueN;
   if (coreMean > 140 || meanL > 165 || brightN / opaqueN > 0.55) {
@@ -1107,20 +1107,21 @@ export function flattenLogoForSvg(
   const graySpread = grayMean - coreMean;
   const canKeepGray =
     keepGray &&
-    graySpread >= 15 &&
-    lightInk.length >= Math.max(24, Math.floor(nInk * 0.015));
-  let grayRgb: Rgb = [96, 96, 98];
+    graySpread >= 12 &&
+    lightInk.length >= Math.max(24, Math.floor(nInk * 0.012));
+  let grayRgb: Rgb = [110, 110, 112];
   if (canKeepGray) {
-    const g = Math.max(56, Math.min(125, Math.round(grayMean)));
+    // Keep shading a bit lighter than the dark core — avoid crushing to near-black.
+    const g = Math.max(72, Math.min(155, Math.round(grayMean)));
     grayRgb = [g, g, Math.min(255, g + 2)];
   }
 
   const FEATURE_HI = Math.max(165, Math.min(200, Math.round(coreMean + 70)));
   const FEATURE_LO = Math.max(140, Math.min(FEATURE_HI - 10, Math.round(coreMean + 50)));
   const GRAY_LO = canKeepGray
-    ? Math.max(coreMean + 6, Math.min(FEATURE_LO - 12, (coreMean + grayMean) / 2))
+    ? Math.max(coreMean + 5, Math.min(FEATURE_LO - 12, (coreMean + grayMean) / 2))
     : 999;
-  const GRAY_HI = canKeepGray ? Math.min(FEATURE_LO - 4, 145) : 0;
+  const GRAY_HI = canKeepGray ? Math.min(FEATURE_LO - 2, 155) : 0;
 
   const origL = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
@@ -1269,6 +1270,28 @@ export function flattenLogoForSvg(
   if (!outCtx) throw new Error("Canvas 2D indisponible.");
   outCtx.putImageData(image, 0, 0);
   return out;
+}
+
+/**
+ * Median mid-gray from a flattened Logo canvas (L 50–170, opaque).
+ * Used to align ImageTracer's fixed gray bucket with the actual mark.
+ */
+export function sampleLogoMidGray(canvas: HTMLCanvasElement): Rgb | null {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const samples: number[] = [];
+  for (let i = 0; i < width * height; i++) {
+    const j = i * 4;
+    if (data[j + 3] < 200) continue;
+    const L = luma(data[j], data[j + 1], data[j + 2]);
+    if (L < 50 || L > 170) continue;
+    samples.push(L);
+  }
+  if (samples.length < 16) return null;
+  samples.sort((a, b) => a - b);
+  const g = Math.round(samples[Math.floor(samples.length * 0.55)]!);
+  return [g, g, Math.min(255, g + 2)];
 }
 
 /**

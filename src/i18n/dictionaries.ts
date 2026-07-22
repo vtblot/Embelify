@@ -142,13 +142,13 @@ export const en: Dict = {
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Tighter — crop ~5px fringe / arcs",
   "step2.scope": "Holes",
-  "step2.scope.auto": "Auto — keep icon eyes, clear letter holes",
+  "step2.scope.auto": "Auto — keep small icon details, clear letter holes",
   "step2.scope.exterior": "Keep closed holes — eyes & letter fills stay",
   "step2.scope.interior": "Clear closed holes — letters, rings & eyes",
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "For BAGGERO, use “Logo + gray” to keep cat shading. Palette 3 = flat black; 4 = keep gray.",
+    "Use “Logo + gray” for marks with soft shading; “flat B&W” for pure black logos. Palette 3 = flat; 4 = keep a mid-gray.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — black / white / gray marks",
   "step3.mode.general": "General — photos & multi-color",
@@ -167,9 +167,9 @@ export const en: Dict = {
   "step3.palette.high": "32 (rich)",
   "step3.palette.high.logo": "4 (gray)",
   "step3.hint":
-    "Palette levels = how many tones to keep after posterize (not brand color names). B&W logo: 2–4. Photo: 12–24.",
+    "Palette levels = how many tones to keep after posterize (not brand color names). Logo: 2–4. Photo: 12–24.",
   "step3.hint.logo":
-    "Palette 4 keeps cat grays; 3 flattens to black. Contour detail changes path fidelity — try 4 vs 9 to see it.",
+    "Palette 4 keeps one mid-gray for shaded marks; 3 flattens to black/white. Contour detail changes path fidelity — try 4 vs 9.",
   "step3.hint.general":
     "Photo mode only — not for flat logos. Soft photos: detail mid, palette 8–16.",
   "actions.recompute": "Recompute",
@@ -275,13 +275,13 @@ export const fr: Dict = {
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Serré — coupe ~5px de halo / arcs",
   "step2.scope": "Trous",
-  "step2.scope.auto": "Auto — garde les yeux du picto, vide les lettres",
+  "step2.scope.auto": "Auto — garde les petits détails du picto, vide les lettres",
   "step2.scope.exterior": "Garder les trous fermés — yeux et lettres pleines",
   "step2.scope.interior": "Vider les trous fermés — lettres, anneaux et yeux",
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Pour BAGGERO, utilisez « Logo + gris » pour garder les ombres du chat. Palette 3 = noir plat ; 4 = conserve le gris.",
+    "Utilisez « Logo + gris » pour un logo ombré ; « N&B plat » pour un aplat pur. Palette 3 = plat ; 4 = garde un gris moyen.",
   "step3.mode": "Mode",
   "step3.mode.logo": "Logo — aplats noir / blanc / gris",
   "step3.mode.general": "Général — photos & multicolore",
@@ -300,9 +300,9 @@ export const fr: Dict = {
   "step3.palette.high": "32 (riche)",
   "step3.palette.high.logo": "4 (gris)",
   "step3.hint":
-    "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo N&B : 2–4. Photo : 12–24.",
+    "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo : 2–4. Photo : 12–24.",
   "step3.hint.logo":
-    "Palette 4 garde les gris du chat ; 3 aplatit en noir. Le détail des contours change vraiment — testez 4 vs 9.",
+    "Palette 4 conserve un gris moyen pour les logos ombrés ; 3 aplatit en noir/blanc. Le détail des contours change vraiment — testez 4 vs 9.",
   "step3.hint.general":
     "Mode photo uniquement — pas pour un logo plat. Photos douces : détail moyen, palette 8–16.",
   "actions.recompute": "Recalculer",

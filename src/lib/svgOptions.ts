@@ -111,11 +111,11 @@ export function resolveSvgTraceOptions(
         { r: 0, g: 0, b: 0, a: 0 },
       ];
     } else {
-      // Black + mid-gray + white + clear — stable cat face banding
+      // Black + mid-gray + white + clear — gray RGB may be refined after flatten
       base.numberofcolors = 4;
       base.pal = [
         { r: 0, g: 0, b: 0, a: 255 },
-        { r: 96, g: 96, b: 98, a: 255 },
+        { r: 110, g: 110, b: 112, a: 255 },
         { r: 255, g: 255, b: 255, a: 255 },
         { r: 0, g: 0, b: 0, a: 0 },
       ];
@@ -135,6 +135,24 @@ export function resolveSvgTraceOptions(
     scale: 1,
     viewbox: true,
   };
+}
+
+/**
+ * Optional mid-gray override for Logo palette 4 (sampled after flatten).
+ */
+export function applyLogoMidGray(
+  trace: SvgTraceOptions,
+  gray: { r: number; g: number; b: number } | null | undefined,
+): SvgTraceOptions {
+  if (!gray || !trace.pal || trace.pal.length < 4) return trace;
+  const next = trace.pal.slice();
+  next[1] = {
+    r: Math.max(0, Math.min(255, Math.round(gray.r))),
+    g: Math.max(0, Math.min(255, Math.round(gray.g))),
+    b: Math.max(0, Math.min(255, Math.round(gray.b))),
+    a: 255,
+  };
+  return { ...trace, pal: next };
 }
 
 /** @deprecated — kept for older call sites / smokes during transition */

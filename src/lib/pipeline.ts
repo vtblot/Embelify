@@ -6,6 +6,7 @@ import {
   looksLikeFlatGraphic,
   punchHybridMarkTextHoles,
   removeSolidBackground,
+  sampleLogoMidGray,
   scrubMismatchedEdgeColors,
   type CutScope,
   type EdgeTighten,
@@ -13,6 +14,7 @@ import {
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
 import {
   resolveSvgTraceOptions,
+  applyLogoMidGray,
   controlsFromLegacy,
   type SvgMode,
   type SvgSliderControls,
@@ -540,8 +542,12 @@ async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Pr
           palette: opts.svgPalette ?? (opts.svgMode === "general" ? 12 : 3),
         }
       : controlsFromLegacy(opts.svgStyle, opts.svgColors);
-  const trace = resolveSvgTraceOptions(controls);
+  let trace = resolveSvgTraceOptions(controls);
   canvas = prepareCanvasForSvg(canvas, controls.mode, controls.palette);
+  if (controls.mode === "logo" && controls.palette >= 4) {
+    const gray = sampleLogoMidGray(canvas);
+    if (gray) trace = applyLogoMidGray(trace, { r: gray[0], g: gray[1], b: gray[2] });
+  }
   progress(
     opts,
     controls.mode === "logo"
