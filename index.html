@@ -167,6 +167,15 @@
           <div class="checker" aria-hidden="true"></div>
           <img id="preview-img" alt="Result" data-i18n-aria="preview.alt" hidden />
           <div id="preview-svg" class="svg-host" hidden></div>
+          <div class="preview-spinner" id="preview-spinner" hidden>
+            <div
+              class="spinner-wheel"
+              role="status"
+              aria-live="polite"
+              data-i18n-aria="preview.processing"
+              aria-label="Processing…"
+            ></div>
+          </div>
         </div>
         <div class="preview-meta">
           <p id="preview-label" data-i18n="preview.default">Preview</p>

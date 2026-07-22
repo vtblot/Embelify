@@ -39,6 +39,7 @@ const preview = document.getElementById("preview") as HTMLElement;
 const previewFrame = preview.querySelector(".preview-frame") as HTMLElement;
 const previewImg = document.getElementById("preview-img") as HTMLImageElement;
 const previewSvg = document.getElementById("preview-svg") as HTMLDivElement;
+const previewSpinner = document.getElementById("preview-spinner") as HTMLElement;
 const previewLabel = document.getElementById("preview-label") as HTMLParagraphElement;
 const stepBadge = document.getElementById("step-badge") as HTMLParagraphElement;
 const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
@@ -132,6 +133,19 @@ function setStatus(message: string, isError = false) {
   statusEl.classList.toggle("is-error", isError);
 }
 
+function setPreviewBusy(busy: boolean) {
+  previewFrame?.classList.toggle("is-busy", busy);
+  if (previewSpinner) previewSpinner.hidden = !busy;
+}
+
+function yieldToPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 function setBadge(text: string, state: "loading" | "ready", generation: number) {
   if (generation !== runGeneration) return;
   preview.hidden = false;
@@ -139,7 +153,7 @@ function setBadge(text: string, state: "loading" | "ready", generation: number) 
   stepBadge.textContent = text;
   stepBadge.classList.toggle("is-loading", state === "loading");
   stepBadge.classList.toggle("is-ready", state === "ready");
-  preview.querySelector(".preview-frame")?.classList.toggle("is-busy", state === "loading");
+  setPreviewBusy(state === "loading");
   previewLabel.textContent =
     state === "loading" ? t("preview.processing") : t("preview.synced");
 }
@@ -164,6 +178,7 @@ function resetPreviewUi() {
   stepBadge.classList.remove("is-loading", "is-ready");
   downloadBtn.disabled = true;
   previewFrame?.style.removeProperty("--preview-ar");
+  setPreviewBusy(false);
 }
 
 function clearUiAssets() {
@@ -295,6 +310,9 @@ async function runLive(reason: "auto" | "manual" = "auto") {
   preview.hidden = false;
   setBadge(t("badge.prep"), "loading", myGen);
   setStatus(reason === "auto" ? t("status.updating") : t("status.processing"));
+  // Let the spinner paint before heavy sync work (flatten / ImageTracer)
+  await yieldToPaint();
+  if (myGen !== runGeneration) return;
 
   try {
     const result = await runPipeline(file, {
@@ -355,7 +373,10 @@ async function runLive(reason: "auto" | "manual" = "auto") {
       setBadge(t("badge.error"), "ready", myGen);
     }
   } finally {
-    if (myGen === runGeneration) submitBtn.disabled = false;
+    if (myGen === runGeneration) {
+      submitBtn.disabled = false;
+      setPreviewBusy(false);
+    }
   }
 }
 
@@ -369,12 +390,13 @@ function scheduleLiveRun() {
     stepBadge.classList.add("is-loading");
     stepBadge.classList.remove("is-ready");
     previewLabel.textContent = t("preview.waiting");
+    setPreviewBusy(true);
     setStatus(t("status.optionChanged"));
   }
   debounceTimer = window.setTimeout(() => {
     debounceTimer = null;
     void runLive("auto");
-  }, 220);
+  }, 280);
 }
 
 function refreshI18n() {
