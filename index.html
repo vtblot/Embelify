@@ -49,13 +49,16 @@
 
     <section class="workspace" data-i18n-aria="workspace.aria" aria-label="Workspace">
       <form id="pipeline-form" class="pipeline">
-        <label class="dropzone" id="dropzone" for="file-input">
-          <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" required />
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" data-i18n-aria="dropzone.aria" aria-label="Choose or drop an image">
+          <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg" required />
           <span class="dropzone-orbit" aria-hidden="true"></span>
-          <span class="dropzone-title" data-i18n="dropzone.title">Drop an image</span>
-          <span class="dropzone-hint" data-i18n="dropzone.hint">PNG, JPEG, WebP — never uploaded or saved</span>
+          <span class="dropzone-title" data-i18n="dropzone.title">Drop an image here</span>
+          <span class="dropzone-hint" data-i18n="dropzone.hint">or click the button — PNG, JPEG, WebP</span>
+          <button type="button" class="dropzone-browse" id="file-browse" data-i18n="dropzone.browse">
+            Choose a file
+          </button>
           <span class="dropzone-file" id="file-name" hidden></span>
-        </label>
+        </div>
 
         <fieldset class="steps">
           <legend data-i18n="options.legend">Options</legend>

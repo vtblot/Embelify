@@ -6,6 +6,8 @@ export type Dict = {
   "hero.lede": string;
   "dropzone.title": string;
   "dropzone.hint": string;
+  "dropzone.browse": string;
+  "dropzone.aria": string;
   "options.legend": string;
   "options.order": string;
   "step1.label": string;
@@ -55,6 +57,7 @@ export type Dict = {
   "actions.recompute.hint": string;
   "status.drop": string;
   "status.choose": string;
+  "status.needImage": string;
   "status.needOption": string;
   "status.updating": string;
   "status.processing": string;
@@ -121,8 +124,10 @@ export const en: Dict = {
   "header.tagline": "Local · live preview · download",
   "hero.lede":
     "Tweak the options: the preview updates at every step. Download the result — nothing is stored.",
-  "dropzone.title": "Drop an image",
-  "dropzone.hint": "PNG, JPEG, WebP — never uploaded or saved",
+  "dropzone.title": "Drop an image here",
+  "dropzone.hint": "or click the button — PNG, JPEG, WebP",
+  "dropzone.browse": "Choose a file",
+  "dropzone.aria": "Choose or drop an image",
   "options.legend": "Options",
   "options.order": "Each change refreshes the preview · order: background → upscale → SVG",
   "step1.label": "Upscale",
@@ -177,6 +182,7 @@ export const en: Dict = {
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
   "status.drop": "Drop an image to see a live preview.",
   "status.choose": "Choose an image.",
+  "status.needImage": "Please choose an image file (PNG, JPEG, WebP…).",
   "status.needOption": "Enable at least one option to see a result.",
   "status.updating": "Updating preview (please wait while models load)…",
   "status.processing": "Processing…",
@@ -250,8 +256,10 @@ export const fr: Dict = {
   "header.tagline": "Local · aperçu live · téléchargement",
   "hero.lede":
     "Ajustez les options : l’aperçu se met à jour à chaque étape. Téléchargez le résultat — rien n’est stocké.",
-  "dropzone.title": "Déposez une image",
-  "dropzone.hint": "PNG, JPEG, WebP — jamais envoyé ni sauvegardé",
+  "dropzone.title": "Déposez une image ici",
+  "dropzone.hint": "ou cliquez sur le bouton — PNG, JPEG, WebP",
+  "dropzone.browse": "Choisir un fichier",
+  "dropzone.aria": "Choisir ou déposer une image",
   "options.legend": "Options",
   "options.order": "Chaque changement recalcule l’aperçu · ordre : fond → upscale → SVG",
   "step1.label": "Upscale",
@@ -310,6 +318,7 @@ export const fr: Dict = {
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",
   "status.drop": "Déposez une image pour voir l’aperçu en direct.",
   "status.choose": "Choisissez une image.",
+  "status.needImage": "Choisissez un fichier image (PNG, JPEG, WebP…).",
   "status.needOption": "Activez au moins une option pour voir un résultat.",
   "status.updating": "Mise à jour de l’aperçu (patientez pendant le chargement)…",
   "status.processing": "Traitement en cours…",

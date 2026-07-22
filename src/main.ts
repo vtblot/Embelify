@@ -29,8 +29,9 @@ import {
 } from "./lib/session";
 
 const form = document.getElementById("pipeline-form") as HTMLFormElement;
-const dropzone = document.getElementById("dropzone") as HTMLLabelElement;
+const dropzone = document.getElementById("dropzone") as HTMLElement;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
+const fileBrowse = document.getElementById("file-browse") as HTMLButtonElement | null;
 const fileName = document.getElementById("file-name") as HTMLSpanElement;
 const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLParagraphElement;
@@ -486,43 +487,89 @@ bgModeSelect.addEventListener("change", () => {
 edgeTightenSelect.addEventListener("change", scheduleLiveRun);
 cutScopeSelect.addEventListener("change", scheduleLiveRun);
 
-["dragenter", "dragover"].forEach((evt) => {
-  dropzone.addEventListener(evt, (e) => {
-    e.preventDefault();
-    dropzone.classList.add("is-drag");
-  });
-});
-
-["dragleave", "drop"].forEach((evt) => {
-  dropzone.addEventListener(evt, (e) => {
-    e.preventDefault();
-    dropzone.classList.remove("is-drag");
-  });
-});
-
 function maybePreloadModels() {
   const mode = bgModeSelect.value as BgMode;
   // Heavy rembg/ONNX only when Photo or Auto might need it
   if (mode === "ai" || mode === "auto") preloadModels();
 }
 
-dropzone.addEventListener("drop", (e) => {
-  const file = e.dataTransfer?.files?.[0];
+function takeFile(file: File | null | undefined) {
   if (!file) return;
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  fileInput.files = dt.files;
+  if (!file.type.startsWith("image/") && !/\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(file.name)) {
+    setStatus(t("status.needImage"), true);
+    return;
+  }
+  try {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+  } catch {
+    // Some browsers block programmatic FileList assignment — session still gets the File.
+  }
   assignSource(file);
   maybePreloadModels();
   scheduleLiveRun();
+}
+
+["dragenter", "dragover"].forEach((evt) => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.add("is-drag");
+  });
+});
+
+dropzone.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  const related = e.relatedTarget as Node | null;
+  if (related && dropzone.contains(related)) return;
+  dropzone.classList.remove("is-drag");
+});
+
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  dropzone.classList.remove("is-drag");
+  takeFile(e.dataTransfer?.files?.[0]);
+});
+
+// Whole-window drop — users often miss the small dashed box
+["dragenter", "dragover"].forEach((evt) => {
+  document.addEventListener(evt, (e) => {
+    if (!(e as DragEvent).dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();
+  });
+});
+document.addEventListener("drop", (e) => {
+  const files = e.dataTransfer?.files;
+  if (!files?.length) return;
+  e.preventDefault();
+  dropzone.classList.remove("is-drag");
+  takeFile(files[0]);
+});
+
+function openFilePicker() {
+  fileInput.click();
+}
+
+fileBrowse?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  openFilePicker();
+});
+dropzone.addEventListener("click", (e) => {
+  if (e.target === fileBrowse) return;
+  openFilePicker();
+});
+dropzone.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    openFilePicker();
+  }
 });
 
 fileInput.addEventListener("change", () => {
-  assignSource(fileInput.files?.[0] ?? null);
-  if (fileInput.files?.[0]) {
-    maybePreloadModels();
-    scheduleLiveRun();
-  }
+  takeFile(fileInput.files?.[0] ?? null);
 });
 
 upscaleSelect.addEventListener("change", scheduleLiveRun);
