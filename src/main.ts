@@ -336,6 +336,7 @@ removeBgToggle.addEventListener("change", () => {
 });
 bgModeSelect.addEventListener("change", () => {
   syncBgUi();
+  maybePreloadModels();
   scheduleLiveRun();
 });
 edgeTightenSelect.addEventListener("change", scheduleLiveRun);
@@ -355,6 +356,12 @@ cutScopeSelect.addEventListener("change", scheduleLiveRun);
   });
 });
 
+function maybePreloadModels() {
+  const mode = bgModeSelect.value as BgMode;
+  // Heavy rembg/ONNX only when Photo or Auto might need it
+  if (mode === "ai" || mode === "auto") preloadModels();
+}
+
 dropzone.addEventListener("drop", (e) => {
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
@@ -362,14 +369,14 @@ dropzone.addEventListener("drop", (e) => {
   dt.items.add(file);
   fileInput.files = dt.files;
   assignSource(file);
-  preloadModels();
+  maybePreloadModels();
   scheduleLiveRun();
 });
 
 fileInput.addEventListener("change", () => {
   assignSource(fileInput.files?.[0] ?? null);
   if (fileInput.files?.[0]) {
-    preloadModels();
+    maybePreloadModels();
     scheduleLiveRun();
   }
 });
@@ -412,18 +419,6 @@ installSessionGuards(() => {
 
 setLocale(detectLocale());
 refreshI18n();
+// Do not preload rembg/ONNX on idle — wait until Auto/Photo is relevant
+maybePreloadModels();
 
-const ric = (
-  window as Window & {
-    requestIdleCallback?: (
-      cb: () => void,
-      opts?: { timeout: number },
-    ) => number;
-  }
-).requestIdleCallback;
-
-if (typeof ric === "function") {
-  ric(() => preloadModels(), { timeout: 2500 });
-} else {
-  setTimeout(() => preloadModels(), 1200);
-}
