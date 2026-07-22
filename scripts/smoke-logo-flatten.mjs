@@ -24,44 +24,43 @@ function chunk(type, data) {
 }
 
 function writeCatLogo(path) {
-  const w = 200;
+  // Wider canvas: cat + letter "O" with white counter (wordmark holes)
+  const w = 320;
   const h = 200;
   const raw = Buffer.alloc((w * 4 + 1) * h);
   for (let y = 0; y < h; y++) {
     raw[y * (w * 4 + 1)] = 0;
     for (let x = 0; x < w; x++) {
       const i = y * (w * 4 + 1) + 1 + x * 4;
-      // Black bg
       let r = 0;
       let g = 0;
       let b = 0;
       const dx = x - 100;
       const dy = y - 110;
       const inHead = dx * dx + dy * dy <= 55 * 55;
-      // Pointy ears
       const inEarL =
         x >= 45 && x <= 80 && y >= 35 && y <= 85 && (x - 45) + (y - 85) * 0.55 <= 20;
       const inEarR =
         x >= 120 && x <= 155 && y >= 35 && y <= 85 && (155 - x) + (y - 85) * 0.55 <= 20;
-      // False off-white triangle INSIDE right ear (the bug)
       const falseEar =
         x >= 128 && x <= 148 && y >= 48 && y <= 72 && (148 - x) >= (y - 48) * 0.7;
-      // Mid-gray lit face band (posterization source)
       const faceBand = inHead && x > 100 && x < 145 && y > 90 && y < 140;
-      // White eyes + nose
       const eyeL = (x - 78) * (x - 78) + (y - 105) * (y - 105) <= 9 * 9;
       const eyeR = (x - 122) * (x - 122) + (y - 105) * (y - 105) <= 9 * 9;
       const nose = (x - 100) * (x - 100) + (y - 128) * (y - 128) <= 6 * 6;
+      // Letter O on the right: dark ring + white hole (must survive Logo SVG)
+      const ox = x - 250;
+      const oy = y - 100;
+      const inORing = ox * ox + oy * oy <= 38 * 38 && ox * ox + oy * oy >= 18 * 18;
+      const inOHole = ox * ox + oy * oy < 18 * 18;
 
-      // White cream eyes + nose (BAGGERO-like ~200, not pure 255)
-      if (eyeL || eyeR || nose) {
+      if (eyeL || eyeR || nose || inOHole) {
         r = g = b = 200;
       } else if (falseEar) {
-        r = g = b = 230; // bright off-white ear fill — must NOT survive as a "feature"
+        r = g = b = 230;
       } else if (faceBand) {
-        r = g = b = 95; // mid-gray banding — must snap to dark
-      } else if (inHead || inEarL || inEarR) {
-        // Must stay > HARD_DIST from black bg or chroma soft-fringe eats the body
+        r = g = b = 95;
+      } else if (inHead || inEarL || inEarR || inORing) {
         r = g = b = 72;
       }
       raw[i] = r;

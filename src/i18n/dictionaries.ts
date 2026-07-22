@@ -151,7 +151,7 @@ export const en: Dict = {
   "step3.hint":
     "Logo SVG recipe: Solid color → Exterior → Logo. For shaded grays, switch Style to Faithful + Many.",
   "step3.hint.logo":
-    "Logo locks to 2–3 colors (dark body + white eyes/nose). Peu / Auto / Many have no effect — use Faithful if you need more colors.",
+    "Logo locks to 2–3 colors (dark + white). Keeps enclosed whites: eyes, nose, letter holes. Peu/Auto/Many ignored — use Faithful for gray shading.",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
@@ -273,7 +273,7 @@ export const fr: Dict = {
   "step3.hint":
     "Recette logo SVG : Couleur unie → Extérieur → Logo. Pour garder les gris, passez le Style sur Fidèle + Beaucoup.",
   "step3.hint.logo":
-    "Logo force 2–3 couleurs (corps sombre + yeux/nez blancs). Peu / Auto / Beaucoup n’ont aucun effet — utilisez Fidèle pour plus de couleurs.",
+    "Logo force 2–3 couleurs (sombre + blanc). Garde les blancs fermés : yeux, nez, trous de lettres. Peu/Auto/Beaucoup ignorés — Fidèle pour les gris.",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",

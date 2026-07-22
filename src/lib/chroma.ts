@@ -1129,6 +1129,8 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
   const queue = new Int32Array(w * h);
   let nextLabel = 1;
   const keepLabels = new Set<number>();
+  // Scale-aware: ear-tip AA sits near the cutout edge; letter counters do not
+  const rimProbe = Math.max(5, Math.round(Math.min(w, h) * 0.02));
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1141,6 +1143,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
       let qh = 0;
       let qt = 0;
       let touchesClear = false;
+      let nearRim = false;
       let size = 0;
       brightLabel[start] = nextLabel;
       queue[qt++] = start;
@@ -1151,6 +1154,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
         const cy = (idx / w) | 0;
         size += 1;
         if (touchesTransparent(data, w, h, cx, cy, 1)) touchesClear = true;
+        if (touchesTransparent(data, w, h, cx, cy, rimProbe)) nearRim = true;
 
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
@@ -1159,6 +1163,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
             const ny = cy + dy;
             if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
               touchesClear = true;
+              nearRim = true;
               continue;
             }
             const nidx = ny * w + nx;
@@ -1166,6 +1171,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
             const ni = nidx * 4;
             if (data[ni + 3] < 200) {
               touchesClear = true;
+              nearRim = true;
               continue;
             }
             // Grow through near-white only — stops at dark body (enclosed island)
@@ -1176,9 +1182,9 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
         }
       }
 
-      // Eyes/nose are small enclosed lights; reject fringe crumbs and ear-sized fills
-      const maxFeature = Math.max(64, Math.floor(opaqueN * 0.045));
-      if (!touchesClear && size >= 6 && size <= maxFeature) {
+      // Keep enclosed bright islands: eyes, nose, letter counters (B/A/O…).
+      // Drop rim-adjacent blobs (ear-tip AA) and tiny crumbs.
+      if (!touchesClear && !nearRim && size >= 6) {
         keepLabels.add(nextLabel);
       }
       nextLabel += 1;
