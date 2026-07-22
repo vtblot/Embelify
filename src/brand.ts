@@ -7,12 +7,23 @@ const baggeroUrl =
   (import.meta.env.VITE_BAGGERO_URL as string | undefined)?.trim() ||
   "";
 
+/** Official Baggero PNG filenames in public/ — use as-is, never regenerate. */
+export const BAGGERO_LOGOS = {
+  /** Fond blanc — footer & cutout tests */
+  whiteBackground: "BAGGERO + LOGO fond blanc.png",
+  /** Lockup standard (fond sombre) */
+  default: "BAGGERO + LOGO.png",
+} as const;
+
+export function publicAsset(filename: string): string {
+  return `/${encodeURI(filename)}`;
+}
+
 /**
  * Brand assets (footer lockup):
- *   public/baggero-logo.png  ← drop the official Baggero PNG here (replace stand-in)
- *   public/baggero-mark.svg  ← optional SVG fallback if the PNG fails to load
- *
- * Do not regenerate the logo from chat screenshots — use the real source file.
+ *   public/BAGGERO + LOGO fond blanc.png
+ *   public/BAGGERO + LOGO.png
+ *   public/baggero-mark.svg  ← optional fallback if PNG fails
  */
 export const BRAND = {
   name: "Embelify",
@@ -21,8 +32,8 @@ export const BRAND = {
   baggero: {
     name: "Baggero",
     url: baggeroUrl,
-    /** Official raster lockup — replace public/baggero-logo.png with the real asset */
-    logoSrc: "/baggero-logo.png",
+    logoSrc: publicAsset(BAGGERO_LOGOS.whiteBackground),
+    logoDarkSrc: publicAsset(BAGGERO_LOGOS.default),
     markSrc: "/baggero-mark.svg",
   },
   /** Sister product — same company, separate product & domain */

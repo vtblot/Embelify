@@ -1,14 +1,25 @@
 /**
- * Run Embelify cutout + Logo+gray SVG on fixtures/baggero/{white,black}-bg.png
+ * Run Embelify cutout + Logo+gray SVG on official Baggero logos in public/
  */
 import { chromium } from "playwright";
 import fs from "fs";
 import path from "path";
 
-const ROOT = path.resolve("fixtures/baggero");
+const PUBLIC = path.resolve("public");
 const FIXTURES = [
-  { id: "white-bg", file: path.join(ROOT, "white-bg.png"), expectGray: true, expectWhite: true },
-  { id: "black-bg", file: path.join(ROOT, "black-bg.png"), expectGray: false, expectWhite: false, expectHard: true },
+  {
+    id: "white-bg",
+    file: path.join(PUBLIC, "BAGGERO + LOGO fond blanc.png"),
+    expectGray: true,
+    expectWhite: true,
+  },
+  {
+    id: "black-bg",
+    file: path.join(PUBLIC, "BAGGERO + LOGO.png"),
+    expectGray: false,
+    expectWhite: false,
+    expectHard: true,
+  },
 ];
 
 for (const fx of FIXTURES) {
