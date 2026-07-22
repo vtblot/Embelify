@@ -25,6 +25,7 @@ export type Dict = {
   "step3.optional": string;
   "step3.desc": string;
   "actions.recompute": string;
+  "actions.recompute.hint": string;
   "status.drop": string;
   "status.choose": string;
   "status.needOption": string;
@@ -113,6 +114,8 @@ export const en: Dict = {
   "step3.optional": "(optional)",
   "step3.desc": "Vectorizes logos / simple shapes. Not suited to photos.",
   "actions.recompute": "Recompute",
+  "actions.recompute.hint":
+    "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
   "status.drop": "Drop an image to see a live preview.",
   "status.choose": "Choose an image.",
   "status.needOption": "Enable at least one option to see a result.",
@@ -212,6 +215,8 @@ export const fr: Dict = {
   "step3.optional": "(optionnel)",
   "step3.desc": "Vectorise logos / formes simples. Pas adapté aux photos.",
   "actions.recompute": "Recalculer",
+  "actions.recompute.hint":
+    "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",
   "status.drop": "Déposez une image pour voir l’aperçu en direct.",
   "status.choose": "Choisissez une image.",
   "status.needOption": "Activez au moins une option pour voir un résultat.",
