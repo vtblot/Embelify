@@ -129,9 +129,9 @@ body {
 
 .workspace {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: 0.92fr 1.18fr;
   gap: clamp(1.25rem, 3vw, 2rem);
-  align-items: start;
+  align-items: stretch;
   animation: rise 0.8s 0.12s ease both;
 }
 
@@ -537,17 +537,19 @@ select {
   top: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  justify-content: center;
+  gap: 0.95rem;
+  min-height: min(78vh, 820px);
   animation: rise 0.55s ease both;
 }
 
 .preview-frame {
   position: relative;
   width: 100%;
-  min-height: 160px;
+  min-height: 200px;
   /* Set from JS to match imported image — fallback square until first paint */
   aspect-ratio: var(--preview-ar, 1);
-  max-height: min(62vh, 560px);
+  max-height: min(78vh, 720px);
   background: #0a100d;
   border: 1px solid var(--line);
   overflow: hidden;
