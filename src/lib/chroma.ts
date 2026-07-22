@@ -18,29 +18,55 @@ function luma(r: number, g: number, b: number): number {
 }
 
 function sampleCorners(data: Uint8ClampedArray, w: number, h: number): Rgb {
-  const pts = [
-    0,
-    (w - 1) * 4,
-    (h - 1) * w * 4,
-    ((h - 1) * w + (w - 1)) * 4,
-  ];
-  const inset = Math.max(1, Math.min(8, Math.floor(Math.min(w, h) / 40)));
-  pts.push(
-    (inset * w + inset) * 4,
-    (inset * w + (w - 1 - inset)) * 4,
-    ((h - 1 - inset) * w + inset) * 4,
-    ((h - 1 - inset) * w + (w - 1 - inset)) * 4,
-  );
+  // Sample along the border (not just 8 points) and take a robust median-ish
+  // average of the most common cluster — avoids subject-in-corner contamination.
+  const samples: number[] = [];
+  const step = Math.max(1, Math.floor(Math.max(w, h) / 64));
 
+  for (let x = 0; x < w; x += step) {
+    samples.push(0 * w + x);
+    samples.push((h - 1) * w + x);
+  }
+  for (let y = step; y < h - step; y += step) {
+    samples.push(y * w + 0);
+    samples.push(y * w + (w - 1));
+  }
+
+  const colors: Rgb[] = samples.map((idx) => {
+    const i = idx * 4;
+    return [data[i], data[i + 1], data[i + 2]] as Rgb;
+  });
+  if (colors.length === 0) return [0, 0, 0];
+
+  // Pick the sample with the most near-neighbors as cluster center (mode proxy)
+  let bestIdx = 0;
+  let bestCount = -1;
+  for (let i = 0; i < colors.length; i++) {
+    let count = 0;
+    for (let j = 0; j < colors.length; j++) {
+      if (dist2(colors[j][0], colors[j][1], colors[j][2], colors[i]) <= HARD_DIST) {
+        count += 1;
+      }
+    }
+    if (count > bestCount) {
+      bestCount = count;
+      bestIdx = i;
+    }
+  }
+
+  const center = colors[bestIdx];
   let r = 0;
   let g = 0;
   let b = 0;
-  for (const i of pts) {
-    r += data[i];
-    g += data[i + 1];
-    b += data[i + 2];
+  let n = 0;
+  for (const c of colors) {
+    if (dist2(c[0], c[1], c[2], center) <= HARD_DIST) {
+      r += c[0];
+      g += c[1];
+      b += c[2];
+      n += 1;
+    }
   }
-  const n = pts.length;
   return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
 }
 
@@ -379,13 +405,14 @@ function erodeThinSpurs(
 }
 
 /**
- * Drop small disconnected islands (not the main logo body).
+ * Drop tiny speck islands only — keep secondary logo parts (dots on “i”, badges).
+ * Previously maxKeepRatio 0.02 / min 12 ate multi-component marks.
  */
 function dropSmallIslands(
   data: Uint8ClampedArray,
   w: number,
   h: number,
-  maxKeepRatio = 0.02,
+  maxKeepRatio = 0.005,
 ): void {
   const seen = new Uint8Array(w * h);
   const queue = new Int32Array(w * h);
@@ -435,8 +462,10 @@ function dropSmallIslands(
   if (comps.length <= 1 || totalOpaque < 32) return;
   comps.sort((a, b) => b.idxs.length - a.idxs.length);
   const main = comps[0].idxs.length;
+  // Only drop dust: < 0.5% of main and under 64 px (was 2% / 12 — too aggressive)
+  const minKeep = Math.max(64, Math.floor(main * maxKeepRatio));
   for (let c = 1; c < comps.length; c++) {
-    if (comps[c].idxs.length <= Math.max(12, main * maxKeepRatio)) {
+    if (comps[c].idxs.length < minKeep) {
       for (const idx of comps[c].idxs) data[idx * 4 + 3] = 0;
     }
   }
@@ -685,6 +714,13 @@ export function applyCutScope(
 ): HTMLCanvasElement {
   if (scope === "interior") return cutout;
   if (cutout.width !== original.width || cutout.height !== original.height) {
+    console.warn(
+      "applyCutScope: size mismatch, skip interior restore",
+      cutout.width,
+      cutout.height,
+      original.width,
+      original.height,
+    );
     return cutout;
   }
 
@@ -755,15 +791,22 @@ export function applyCutScope(
     }
 
     const oL = luma(o[j], o[j + 1], o[j + 2]);
-    // Don't pull original background back into sealed edge cracks
-    const origIsBg =
-      dist2(o[j], o[j + 1], o[j + 2], bg) <= HARD_DIST + 10 && oL < 70;
-    if (origIsBg) {
+    // Don't pull original background OR light fringe crumbs back into the matte
+    const dBg = dist2(o[j], o[j + 1], o[j + 2], bg);
+    const origIsDarkBg = dBg <= HARD_DIST + 10 && oL < 70;
+    // Light AA / glow next to dark logos — treat as bg fringe, not subject
+    const origIsLightFringe =
+      oL > 130 && dBg <= SOFT_DIST + 40 && touchesTransparent(c, w, h, i % w, (i / w) | 0, 2);
+    // Also: light pixels that were exterior-adjacent in the cutout (cleaned fringe zone)
+    const cutWasClear = c[j + 3] < ALPHA_TH;
+    const origIsEdgeCrumb = cutWasClear && oL > 110 && dBg <= SOFT_DIST + 60;
+
+    if (origIsDarkBg || origIsLightFringe || origIsEdgeCrumb) {
       c[j + 3] = 0;
       continue;
     }
 
-    // Interior of silhouette: always restore subject pixels from original
+    // Interior of silhouette: restore subject pixels from original
     // (eyes, ear fills, gradients — whatever AI punched as holes)
     c[j] = o[j];
     c[j + 1] = o[j + 1];
@@ -944,13 +987,53 @@ export function removeSolidBackground(
     if (y + 1 < h) enqueue(x, y + 1);
   }
 
-  // Interior scope: also key enclosed bg-colored pockets (rings, counters)
+  // Interior scope: punch only SMALL enclosed bg pockets (letter counters, rings).
+  // Never globally key every bg-colored pixel — that eats near-black logo bodies.
   if (scope === "interior") {
+    let remainingN = 0;
     for (let idx = 0; idx < visited.length; idx++) {
-      if (visited[idx]) continue;
-      const i = idx * 4;
-      if (dist2(data[i], data[i + 1], data[i + 2], bg) <= HARD_DIST) {
-        visited[idx] = 1;
+      if (!visited[idx]) remainingN += 1;
+    }
+    const seen = new Uint8Array(w * h);
+    const q = new Int32Array(w * h);
+    for (let start = 0; start < visited.length; start++) {
+      if (visited[start] || seen[start]) continue;
+      const si = start * 4;
+      if (dist2(data[si], data[si + 1], data[si + 2], bg) > HARD_DIST) {
+        seen[start] = 1;
+        continue;
+      }
+      // Flood this bg-colored pocket
+      let qh2 = 0;
+      let qt2 = 0;
+      q[qt2++] = start;
+      seen[start] = 1;
+      const pocket: number[] = [];
+      while (qh2 < qt2) {
+        const idx = q[qh2++];
+        pocket.push(idx);
+        const x = idx % w;
+        const y = (idx / w) | 0;
+        for (const [dx, dy] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ] as const) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const nidx = ny * w + nx;
+          if (seen[nidx] || visited[nidx]) continue;
+          const ni = nidx * 4;
+          if (dist2(data[ni], data[ni + 1], data[ni + 2], bg) > HARD_DIST) continue;
+          seen[nidx] = 1;
+          q[qt2++] = nidx;
+        }
+      }
+      // Keep large dark masses (the logo body); only clear small enclosed counters
+      if (pocket.length > 0 && pocket.length < remainingN * 0.12) {
+        for (const idx of pocket) visited[idx] = 1;
       }
     }
   }

@@ -3,6 +3,7 @@ import {
   cleanupCutoutEdges,
   looksLikeFlatGraphic,
   removeSolidBackground,
+  scrubMismatchedEdgeColors,
   type CutScope,
   type EdgeTighten,
 } from "./chroma";
@@ -297,16 +298,16 @@ async function removeBackgroundAi(
   let raw = bitmapToCanvas(bitmap);
   bitmap.close();
 
-  // Edge cleanup FIRST (peel/scrub). Exterior restore MUST be last —
-  // otherwise Tighter peel re-deletes restored white eyes / ear fills.
-  if (logoLike || edge === "tight") {
-    const cleaned = cleanupCutoutEdges(raw, edge, null, {
-      onResidue: (n) =>
-        progress(
-          opts,
-          `Résidu de contour détecté (${n} px) — nettoyage des couleurs hors sujet…`,
-        ),
-    });
+  const reportResidue = (n: number) =>
+    progress(
+      opts,
+      `Résidu de contour détecté (${n} px) — nettoyage des couleurs hors sujet…`,
+    );
+
+  // Aggressive morphological cleanup is for logos only — never hard-matte real photos
+  // just because the user picked Tighter (that destroys hair soft edges).
+  if (logoLike) {
+    const cleaned = cleanupCutoutEdges(raw, edge, null, { onResidue: reportResidue });
     wipeCanvas(raw);
     raw = cleaned;
   }
@@ -316,6 +317,15 @@ async function removeBackgroundAi(
     const restored = applyCutScope(raw, original, "exterior");
     wipeCanvas(raw);
     raw = restored;
+    // Scrub AFTER restore — otherwise restored original fringe undoes cleanup
+    const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(raw, {
+      maxPasses: edge === "tight" ? 10 : 5,
+    });
+    if (removed > 0) {
+      reportResidue(removed);
+      wipeCanvas(raw);
+      raw = scrubbed;
+    }
   }
   wipeCanvas(original);
   return raw;
