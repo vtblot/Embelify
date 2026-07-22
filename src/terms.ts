@@ -1,4 +1,3 @@
-import "./styles.css";
 import { BRAND } from "./brand";
 import { applyStaticI18n, detectLocale, setLocale, type Locale } from "./i18n";
 
