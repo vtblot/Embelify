@@ -913,6 +913,49 @@ export function scrubMismatchedEdgeColors(
     if (passRemoved === 0) break;
   }
 
+  // Final pass: isolated white tip specks (ear points, 1–3 px crumbs).
+  // These often fail the neighborhood test above when they sit alone on a tip.
+  {
+    const snap = new Uint8ClampedArray(data);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (snap[i + 3] < 16) continue;
+        if (!touchesTransparent(snap, w, h, x, y, 1)) continue;
+
+        const L = luma(snap[i], snap[i + 1], snap[i + 2]);
+        // Must be clearly light vs dark logo core
+        if (L < Math.max(150, coreMean + 70)) continue;
+
+        let opaqueN = 0;
+        let darkN = 0;
+        let brightN = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const ni = (ny * w + nx) * 4;
+            if (snap[ni + 3] < 16) continue;
+            opaqueN += 1;
+            const nL = luma(snap[ni], snap[ni + 1], snap[ni + 2]);
+            if (nL < 90) darkN += 1;
+            else if (nL > 140) brightN += 1;
+          }
+        }
+
+        // Lone tip speck, or light crumb almost only touching dark body
+        const isolatedTip = opaqueN <= 3;
+        const lightOnDarkRim = opaqueN <= 5 && darkN >= 2 && brightN === 0;
+        if (isolatedTip || lightOnDarkRim) {
+          data[i + 3] = 0;
+          removed += 1;
+        }
+      }
+    }
+  }
+
   if (removed === 0) return { canvas, removed: 0 };
 
   const out = document.createElement("canvas");
