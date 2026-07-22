@@ -53,8 +53,9 @@ function writeCatLogo(path) {
       const eyeR = (x - 122) * (x - 122) + (y - 105) * (y - 105) <= 9 * 9;
       const nose = (x - 100) * (x - 100) + (y - 128) * (y - 128) <= 6 * 6;
 
+      // White cream eyes + nose (BAGGERO-like ~200, not pure 255)
       if (eyeL || eyeR || nose) {
-        r = g = b = 255;
+        r = g = b = 200;
       } else if (falseEar) {
         r = g = b = 230; // bright off-white ear fill — must NOT survive as a "feature"
       } else if (faceBand) {

@@ -410,7 +410,13 @@ toSvgToggle.addEventListener("change", () => {
   }
   scheduleLiveRun();
 });
-svgStyleSelect.addEventListener("change", scheduleLiveRun);
+svgStyleSelect.addEventListener("change", () => {
+  // Logo style ignores Many — keep the Colors control honest
+  if (svgStyleSelect.value === "logo" && svgColorsSelect.value === "many") {
+    svgColorsSelect.value = "few";
+  }
+  scheduleLiveRun();
+});
 svgColorsSelect.addEventListener("change", scheduleLiveRun);
 
 downloadBtn.addEventListener("click", () => {
