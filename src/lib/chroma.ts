@@ -1043,14 +1043,225 @@ export function scrubMismatchedEdgeColors(
 }
 
 /**
+ * Pre-SVG flatten for dark logos (black cat, marks with white eyes/nose only).
+ *
+ * Faithful+Many ImageTracer turns AA highlights + face shading into muddy
+ * mid-gray bands and false light blobs (e.g. off-white triangle in an ear).
+ * Exterior AI restore can also copy those light interior pixels back.
+ *
+ * Algorithm:
+ * 1. Binary matte; measure dark core from opaque interior.
+ * 2. Snap every opaque pixel below FEATURE_LO toward the dark core
+ *    (kills mid-gray posterization on lit faces).
+ * 3. Keep only bright enclosed islands (L ≥ FEATURE_HI, not touching
+ *    transparency) as pure white — eyes/nose, not ear AA.
+ * 4. Mid-bright non-islands (off-white ear fills, soft highlights) → dark core.
+ *
+ * Skipped for bright-dominant subjects (cream icons). Returns 2-color raster.
+ */
+export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  const w = canvas.width;
+  const h = canvas.height;
+  const image = ctx.getImageData(0, 0, w, h);
+  const { data } = image;
+
+  hardenMatte(data, 128);
+
+  let opaqueN = 0;
+  let brightN = 0;
+  let lumaSum = 0;
+  const interiorLumas: number[] = [];
+  const interiorRgb: Rgb[] = [];
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i + 3] < 200) continue;
+      opaqueN += 1;
+      const L = luma(data[i], data[i + 1], data[i + 2]);
+      lumaSum += L;
+      if (L > 180) brightN += 1;
+      if (touchesTransparent(data, w, h, x, y, 2)) continue;
+      interiorLumas.push(L);
+      interiorRgb.push([data[i], data[i + 1], data[i + 2]]);
+    }
+  }
+
+  if (opaqueN < 32 || interiorLumas.length < 16) return canvas;
+  const coreMean =
+    interiorLumas.reduce((a, b) => a + b, 0) / interiorLumas.length;
+  const meanL = lumaSum / opaqueN;
+  // Cream / white marks — flattening would destroy the subject
+  if (coreMean > 140 || meanL > 165 || brightN / opaqueN > 0.55) {
+    return canvas;
+  }
+
+  // Darkest quartile of interior = true body (ignore lit mid-grays)
+  const order = interiorLumas
+    .map((_, i) => i)
+    .sort((a, b) => interiorLumas[a] - interiorLumas[b]);
+  const q = Math.max(8, Math.floor(order.length * 0.25));
+  let darkR = 0;
+  let darkG = 0;
+  let darkB = 0;
+  for (let k = 0; k < q; k++) {
+    const c = interiorRgb[order[k]];
+    darkR += c[0];
+    darkG += c[1];
+    darkB += c[2];
+  }
+  // Lift slightly off pure black so ImageTracer won't merge body with a=0 RGB(0,0,0)
+  const coreRgb: Rgb = [
+    Math.max(18, Math.round(darkR / q)),
+    Math.max(18, Math.round(darkG / q)),
+    Math.max(18, Math.round(darkB / q)),
+  ];
+
+  // Off-white ear AA sits ~140–190; true logo whites (eyes/nose) are ≥200
+  const FEATURE_HI = 200;
+  const FEATURE_LO = Math.max(155, Math.min(190, coreMean + 95));
+
+  // Label bright candidates; keep only components fully enclosed by dark body
+  const brightLabel = new Int32Array(w * h);
+  const queue = new Int32Array(w * h);
+  let nextLabel = 1;
+  const keepLabels = new Set<number>();
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = y * w + x;
+      if (brightLabel[start]) continue;
+      const si = start * 4;
+      if (data[si + 3] < 200) continue;
+      if (luma(data[si], data[si + 1], data[si + 2]) < FEATURE_HI) continue;
+
+      let qh = 0;
+      let qt = 0;
+      let touchesClear = false;
+      let size = 0;
+      brightLabel[start] = nextLabel;
+      queue[qt++] = start;
+
+      while (qh < qt) {
+        const idx = queue[qh++];
+        const cx = idx % w;
+        const cy = (idx / w) | 0;
+        size += 1;
+        if (touchesTransparent(data, w, h, cx, cy, 1)) touchesClear = true;
+
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+              touchesClear = true;
+              continue;
+            }
+            const nidx = ny * w + nx;
+            if (brightLabel[nidx]) continue;
+            const ni = nidx * 4;
+            if (data[ni + 3] < 200) {
+              touchesClear = true;
+              continue;
+            }
+            // Grow through near-white only — stops at dark body (enclosed island)
+            if (luma(data[ni], data[ni + 1], data[ni + 2]) < FEATURE_LO) continue;
+            brightLabel[nidx] = nextLabel;
+            queue[qt++] = nidx;
+          }
+        }
+      }
+
+      // Eyes/nose are small enclosed whites; reject fringe crumbs and huge fills
+      const maxFeature = Math.max(80, Math.floor(opaqueN * 0.12));
+      if (!touchesClear && size >= 4 && size <= maxFeature) {
+        keepLabels.add(nextLabel);
+      }
+      nextLabel += 1;
+    }
+  }
+
+  for (let i = 0; i < w * h; i++) {
+    const j = i * 4;
+    if (data[j + 3] < 16) {
+      // Sentinel RGB on clear pixels — keeps dark body out of the tracer's "hole" bucket
+      data[j] = 0;
+      data[j + 1] = 255;
+      data[j + 2] = 0;
+      data[j + 3] = 0;
+      continue;
+    }
+    if (keepLabels.has(brightLabel[i])) {
+      data[j] = 255;
+      data[j + 1] = 255;
+      data[j + 2] = 255;
+      data[j + 3] = 255;
+    } else {
+      data[j] = coreRgb[0];
+      data[j + 1] = coreRgb[1];
+      data[j + 2] = coreRgb[2];
+      data[j + 3] = 255;
+    }
+  }
+
+  // Soft AA ring around white features → hard white or hard dark
+  const snap = new Uint8ClampedArray(data);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (snap[i + 3] < 16) continue;
+      const L = luma(snap[i], snap[i + 1], snap[i + 2]);
+      if (L > 250 || L < 30) continue;
+      let whiteN = 0;
+      let darkNeigh = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const ni = (ny * w + nx) * 4;
+          if (snap[ni + 3] < 16) continue;
+          const nL = luma(snap[ni], snap[ni + 1], snap[ni + 2]);
+          if (nL > 250) whiteN += 1;
+          else if (nL < 80) darkNeigh += 1;
+        }
+      }
+      if (whiteN >= 2 && L >= FEATURE_LO) {
+        data[i] = 255;
+        data[i + 1] = 255;
+        data[i + 2] = 255;
+      } else if (darkNeigh >= 2) {
+        data[i] = coreRgb[0];
+        data[i + 1] = coreRgb[1];
+        data[i + 2] = coreRgb[2];
+      }
+    }
+  }
+
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) throw new Error("Canvas 2D indisponible.");
+  outCtx.putImageData(image, 0, 0);
+  return out;
+}
+
+/**
  * Prepare a cutout raster for ImageTracer: binary matte, peel mid-gray /
  * white fringe, recolor remaining rim to dark interior. Stops the tracer
  * from inventing a light halo path around dark logos.
  * Aborts aggressive steps if they would erase most of the subject.
+ *
+ * Style "logo" runs flattenLogoForSvg after harden — clean 2-color mark.
  */
 export function hardenRasterForSvg(
   canvas: HTMLCanvasElement,
-  intensity: "faithful" | "clean" | "balanced" | "detailed" = "faithful",
+  intensity: "logo" | "faithful" | "clean" | "balanced" | "detailed" = "faithful",
 ): HTMLCanvasElement {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
@@ -1068,17 +1279,27 @@ export function hardenRasterForSvg(
   const opaqueBefore = countOpaque(data);
   if (opaqueBefore < 32) return canvas;
 
-  // Faithful / detailed: light touch only — preserve source shading
+  // Logo / clean: peel more aggressively; faithful / detailed: light touch
   const lightPeel =
-    intensity === "clean"
-      ? 130
-      : intensity === "balanced"
-        ? 145
-        : 160;
+    intensity === "logo"
+      ? 125
+      : intensity === "clean"
+        ? 130
+        : intensity === "balanced"
+          ? 145
+          : 160;
   const spurPasses =
-    intensity === "clean" ? 3 : intensity === "balanced" ? 2 : 0;
+    intensity === "logo" || intensity === "clean"
+      ? 3
+      : intensity === "balanced"
+        ? 2
+        : 0;
   const scrubPasses =
-    intensity === "clean" ? 8 : intensity === "balanced" ? 6 : 4;
+    intensity === "logo" || intensity === "clean"
+      ? 8
+      : intensity === "balanced"
+        ? 6
+        : 4;
 
   hardenMatte(data, 128);
   peelLightFringeFromDarkSubjects(data, w, h, null, { lightThreshold: lightPeel });
@@ -1145,14 +1366,14 @@ export function hardenRasterForSvg(
     const oimg = octx.getImageData(0, 0, w, h);
     if (countOpaque(oimg.data) < opaqueBefore * 0.55) {
       // Scrub ate the subject — fall back to pre-scrub harden
-      return mid;
+      return intensity === "logo" ? flattenLogoForSvg(mid) : mid;
     }
     hardenMatte(oimg.data, 128);
     recolorEdgesFromInterior(oimg.data, w, h);
     hardenMatte(oimg.data, 128);
     octx.putImageData(oimg, 0, 0);
   }
-  return out;
+  return intensity === "logo" ? flattenLogoForSvg(out) : out;
 }
 
 /**

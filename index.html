@@ -108,11 +108,12 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc" data-i18n="step3.desc">Vectorizes logos / simple shapes. Gradients are simplified — leave off for a PNG that matches your source.</p>
+            <p class="step-desc" data-i18n="step3.desc">Turns your cutout into a vector logo. Use Logo for dark marks with white features; Faithful + Many only if you need gray shading.</p>
             <div class="step-extra" id="svg-style-wrap" hidden>
               <label class="sub-label" for="svg_style" data-i18n="step3.style">Style</label>
               <select id="svg_style" name="svg_style">
-                <option value="faithful" selected data-i18n="step3.style.faithful">Faithful — logo SVG (shaded)</option>
+                <option value="logo" selected data-i18n="step3.style.logo">Logo — flat 2–4 colors</option>
+                <option value="faithful" data-i18n="step3.style.faithful">Faithful — shaded (many grays)</option>
                 <option value="clean" data-i18n="step3.style.clean">Clean — flat mark, posterize</option>
                 <option value="balanced" data-i18n="step3.style.balanced">Balanced</option>
                 <option value="detailed" data-i18n="step3.style.detailed">Detailed — keep fine edges</option>
@@ -121,13 +122,13 @@
             <div class="step-extra" id="svg-colors-wrap" hidden>
               <label class="sub-label" for="svg_colors" data-i18n="step3.colors">Colors</label>
               <select id="svg_colors" name="svg_colors">
-                <option value="few" data-i18n="step3.colors.few">Few (6)</option>
+                <option value="few" selected data-i18n="step3.colors.few">Few (6)</option>
                 <option value="auto" data-i18n="step3.colors.auto">Auto (12)</option>
-                <option value="many" selected data-i18n="step3.colors.many">Many (24)</option>
+                <option value="many" data-i18n="step3.colors.many">Many (24)</option>
               </select>
             </div>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint">
-              Logo SVG recipe: Solid color + Exterior + Faithful + Many. Avoid Clean/Few on shaded logos.
+              Logo SVG recipe: Solid color → Exterior → Logo. Flattens mid-grays; keeps only white eyes/nose.
             </p>
           </div>
         </fieldset>

@@ -31,6 +31,7 @@ export type Dict = {
   "step3.optional": string;
   "step3.desc": string;
   "step3.style": string;
+  "step3.style.logo": string;
   "step3.style.faithful": string;
   "step3.style.clean": string;
   "step3.style.balanced": string;
@@ -135,9 +136,10 @@ export const en: Dict = {
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "Turns your cutout into a vector logo. Use Faithful + Many for shaded marks; Clean + Few only for flat 1–2 color marks.",
+    "Turns your cutout into a vector logo. Use Logo for dark marks with white features; Faithful + Many only if you need gray shading.",
   "step3.style": "Style",
-  "step3.style.faithful": "Faithful — logo SVG (shaded)",
+  "step3.style.logo": "Logo — flat 2–4 colors",
+  "step3.style.faithful": "Faithful — shaded (many grays)",
   "step3.style.clean": "Clean — flat mark, posterize",
   "step3.style.balanced": "Balanced",
   "step3.style.detailed": "Detailed — keep fine edges",
@@ -146,7 +148,7 @@ export const en: Dict = {
   "step3.colors.auto": "Auto (12)",
   "step3.colors.many": "Many (24)",
   "step3.hint":
-    "Logo SVG recipe: Solid color cutout → Exterior → Faithful → Many (24). Skip Clean/Few if your logo has gray shading.",
+    "Logo SVG recipe: Solid color → Exterior → Logo. Snaps mid-grays to the dark body; keeps only bright enclosed islands (eyes/nose).",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
@@ -254,9 +256,10 @@ export const fr: Dict = {
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Transforme le détourage en logo vectoriel. Fidèle + Beaucoup pour un logo ombré ; Propre + Peu seulement pour un aplat 1–2 couleurs.",
+    "Transforme le détourage en logo vectoriel. Logo pour un aplat sombre à yeux blancs ; Fidèle + Beaucoup seulement si vous voulez les gris.",
   "step3.style": "Style",
-  "step3.style.faithful": "Fidèle — logo SVG (ombré)",
+  "step3.style.logo": "Logo — aplat 2–4 couleurs",
+  "step3.style.faithful": "Fidèle — ombré (beaucoup de gris)",
   "step3.style.clean": "Propre — aplat, posterise",
   "step3.style.balanced": "Équilibré",
   "step3.style.detailed": "Détaillé — garde les fins contours",
@@ -265,7 +268,7 @@ export const fr: Dict = {
   "step3.colors.auto": "Auto (12)",
   "step3.colors.many": "Beaucoup (24)",
   "step3.hint":
-    "Recette logo SVG : Couleur unie → Extérieur → Fidèle → Beaucoup (24). Évitez Propre/Peu si le logo a des gris.",
+    "Recette logo SVG : Couleur unie → Extérieur → Logo. Force les gris vers le corps sombre ; ne garde que les îlots blancs (yeux/nez).",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",
