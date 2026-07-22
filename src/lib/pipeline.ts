@@ -1,4 +1,4 @@
-import { looksLikeFlatGraphic, removeSolidBackground, type EdgeTighten } from "./chroma";
+import { cleanupCutoutEdges, looksLikeFlatGraphic, removeSolidBackground, type EdgeTighten } from "./chroma";
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
 
 export type UpscaleFactor = 1 | 2 | 4;
@@ -237,6 +237,10 @@ async function removeBackgroundAi(
 ): Promise<HTMLCanvasElement> {
   progress(opts, "Détourage IA (photos)…");
   const { removeBackground } = await import("@imgly/background-removal");
+  // Capture before cutout — post-clean only for logos / explicit tight edges
+  // (hair / soft photo mattes must not be hardened).
+  const logoLike = looksLikeFlatGraphic(canvas);
+  const edge: EdgeTighten = opts.edgeTighten ?? "normal";
 
   const run = async (device: "gpu" | "cpu") => {
     const inputBlob = await canvasToBlob(canvas, "image/png");
@@ -267,9 +271,14 @@ async function removeBackgroundAi(
 
   wipeCanvas(canvas);
   const bitmap = await createImageBitmap(cutout);
-  const out = bitmapToCanvas(bitmap);
+  const raw = bitmapToCanvas(bitmap);
   bitmap.close();
-  return out;
+  if (logoLike || edge === "tight") {
+    const cleaned = cleanupCutoutEdges(raw, edge, null);
+    wipeCanvas(raw);
+    return cleaned;
+  }
+  return raw;
 }
 
 async function removeBackgroundFromCanvas(
