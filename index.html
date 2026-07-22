@@ -108,27 +108,38 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc" data-i18n="step3.desc">Turns your cutout into a vector logo. Use Logo for dark marks with white features; Faithful + Many only if you need gray shading.</p>
-            <div class="step-extra" id="svg-style-wrap" hidden>
-              <label class="sub-label" for="svg_style" data-i18n="step3.style">Style</label>
-              <select id="svg_style" name="svg_style">
-                <option value="logo" selected data-i18n="step3.style.logo">Logo — flat 2–4 colors</option>
-                <option value="faithful" data-i18n="step3.style.faithful">Faithful — shaded (many grays)</option>
-                <option value="clean" data-i18n="step3.style.clean">Clean — flat mark, posterize</option>
-                <option value="balanced" data-i18n="step3.style.balanced">Balanced</option>
-                <option value="detailed" data-i18n="step3.style.detailed">Detailed — keep fine edges</option>
+            <p class="step-desc" data-i18n="step3.desc">Vectorize the result. Logo mode for B&amp;W marks; General for photos / multi-color art. Use the sliders to tune detail and palette levels.</p>
+            <div class="step-extra" id="svg-mode-wrap" hidden>
+              <label class="sub-label" for="svg_mode" data-i18n="step3.mode">Mode</label>
+              <select id="svg_mode" name="svg_mode">
+                <option value="logo" selected data-i18n="step3.mode.logo">Logo — black / white / gray marks</option>
+                <option value="general" data-i18n="step3.mode.general">General — photos &amp; multi-color</option>
               </select>
             </div>
-            <div class="step-extra" id="svg-colors-wrap" hidden>
-              <label class="sub-label" for="svg_colors" data-i18n="step3.colors">Colors</label>
-              <select id="svg_colors" name="svg_colors">
-                <option value="few" selected data-i18n="step3.colors.few">Few (6)</option>
-                <option value="auto" data-i18n="step3.colors.auto">Auto (12)</option>
-                <option value="many" data-i18n="step3.colors.many">Many (24)</option>
-              </select>
+            <div class="step-extra" id="svg-detail-wrap" hidden>
+              <div class="slider-head">
+                <label class="sub-label" for="svg_detail" data-i18n="step3.detail">Contour detail</label>
+                <span class="slider-value" id="svg-detail-value">5</span>
+              </div>
+              <input type="range" id="svg_detail" name="svg_detail" min="1" max="10" step="1" value="5" />
+              <div class="slider-ends">
+                <span data-i18n="step3.detail.low">Simple</span>
+                <span data-i18n="step3.detail.high">Fine</span>
+              </div>
+            </div>
+            <div class="step-extra" id="svg-palette-wrap" hidden>
+              <div class="slider-head">
+                <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Palette levels</label>
+                <span class="slider-value" id="svg-palette-value">3</span>
+              </div>
+              <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="3" />
+              <div class="slider-ends">
+                <span data-i18n="step3.palette.low">2 (B&amp;W)</span>
+                <span data-i18n="step3.palette.high">32 (rich)</span>
+              </div>
             </div>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint.logo">
-              Logo locks to 2–3 colors (dark + white). Keeps enclosed whites: eyes, nose, letter holes. Peu/Auto/Many ignored — use Faithful for gray shading.
+              Palette levels = how many tones to keep (not brand colors). Logo B&amp;W/gray: 2–4. Photos: 12–24.
             </p>
           </div>
         </fieldset>

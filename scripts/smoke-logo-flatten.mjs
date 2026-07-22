@@ -109,10 +109,18 @@ await page.evaluate(() => {
   document.getElementById("bg_mode").dispatchEvent(new Event("change", { bubbles: true }));
   document.getElementById("cut_scope").value = "exterior";
   document.getElementById("cut_scope").dispatchEvent(new Event("change", { bubbles: true }));
-  document.getElementById("svg_style").value = "logo";
-  document.getElementById("svg_style").dispatchEvent(new Event("change", { bubbles: true }));
-  document.getElementById("svg_colors").value = "few";
-  document.getElementById("svg_colors").dispatchEvent(new Event("change", { bubbles: true }));
+  document.getElementById("svg_mode").value = "logo";
+  document.getElementById("svg_mode").dispatchEvent(new Event("change", { bubbles: true }));
+  const detail = document.getElementById("svg_detail");
+  const palette = document.getElementById("svg_palette");
+  if (detail instanceof HTMLInputElement) {
+    detail.value = "5";
+    detail.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  if (palette instanceof HTMLInputElement) {
+    palette.value = "3";
+    palette.dispatchEvent(new Event("input", { bubbles: true }));
+  }
 });
 await page.setInputFiles("#file-input", fixture);
 

@@ -30,18 +30,18 @@ export type Dict = {
   "step3.label": string;
   "step3.optional": string;
   "step3.desc": string;
-  "step3.style": string;
-  "step3.style.logo": string;
-  "step3.style.faithful": string;
-  "step3.style.clean": string;
-  "step3.style.balanced": string;
-  "step3.style.detailed": string;
-  "step3.colors": string;
-  "step3.colors.few": string;
-  "step3.colors.auto": string;
-  "step3.colors.many": string;
+  "step3.mode": string;
+  "step3.mode.logo": string;
+  "step3.mode.general": string;
+  "step3.detail": string;
+  "step3.detail.low": string;
+  "step3.detail.high": string;
+  "step3.palette": string;
+  "step3.palette.low": string;
+  "step3.palette.high": string;
   "step3.hint": string;
   "step3.hint.logo": string;
+  "step3.hint.general": string;
   "actions.recompute": string;
   "actions.recompute.hint": string;
   "status.drop": string;
@@ -137,21 +137,22 @@ export const en: Dict = {
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "Turns your cutout into a vector logo. Use Logo for dark marks with white features; Faithful + Many only if you need gray shading.",
-  "step3.style": "Style",
-  "step3.style.logo": "Logo — flat 2–4 colors",
-  "step3.style.faithful": "Faithful — shaded (many grays)",
-  "step3.style.clean": "Clean — flat mark, posterize",
-  "step3.style.balanced": "Balanced",
-  "step3.style.detailed": "Detailed — keep fine edges",
-  "step3.colors": "Colors",
-  "step3.colors.few": "Few (6)",
-  "step3.colors.auto": "Auto (12)",
-  "step3.colors.many": "Many (24)",
+    "Vectorize the result. Logo mode for B&W / gray marks; General for photos and multi-color art. Sliders set contour detail and palette levels.",
+  "step3.mode": "Mode",
+  "step3.mode.logo": "Logo — black / white / gray marks",
+  "step3.mode.general": "General — photos & multi-color",
+  "step3.detail": "Contour detail",
+  "step3.detail.low": "Simple",
+  "step3.detail.high": "Fine",
+  "step3.palette": "Palette levels",
+  "step3.palette.low": "2 (B&W)",
+  "step3.palette.high": "32 (rich)",
   "step3.hint":
-    "Logo SVG recipe: Solid color → Exterior → Logo. For shaded grays, switch Style to Faithful + Many.",
+    "Palette levels = how many tones to keep after posterize (not brand color names). B&W logo: 2–4. Photo: 12–24.",
   "step3.hint.logo":
-    "Logo locks to 2–3 colors (dark + white). Keeps enclosed whites: eyes, nose, letter holes. Peu/Auto/Many ignored — use Faithful for gray shading.",
+    "Logo flattens to dark + white holes (eyes, letters). Palette is capped at 4. Raise detail for sharper edges.",
+  "step3.hint.general":
+    "General keeps shading and many tones. Low detail = cleaner paths; high detail = more nodes. Use 8–16 levels for soft photos.",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
@@ -259,21 +260,22 @@ export const fr: Dict = {
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Transforme le détourage en logo vectoriel. Logo pour un aplat sombre à yeux blancs ; Fidèle + Beaucoup seulement si vous voulez les gris.",
-  "step3.style": "Style",
-  "step3.style.logo": "Logo — aplat 2–4 couleurs",
-  "step3.style.faithful": "Fidèle — ombré (beaucoup de gris)",
-  "step3.style.clean": "Propre — aplat, posterise",
-  "step3.style.balanced": "Équilibré",
-  "step3.style.detailed": "Détaillé — garde les fins contours",
-  "step3.colors": "Couleurs",
-  "step3.colors.few": "Peu (6)",
-  "step3.colors.auto": "Auto (12)",
-  "step3.colors.many": "Beaucoup (24)",
+    "Vectorise le résultat. Mode Logo pour aplats N&B / gris ; Général pour photos et images multicolores. Les curseurs règlent le détail et les niveaux de palette.",
+  "step3.mode": "Mode",
+  "step3.mode.logo": "Logo — aplats noir / blanc / gris",
+  "step3.mode.general": "Général — photos & multicolore",
+  "step3.detail": "Détail des contours",
+  "step3.detail.low": "Simple",
+  "step3.detail.high": "Fin",
+  "step3.palette": "Niveaux de palette",
+  "step3.palette.low": "2 (N&B)",
+  "step3.palette.high": "32 (riche)",
   "step3.hint":
-    "Recette logo SVG : Couleur unie → Extérieur → Logo. Pour garder les gris, passez le Style sur Fidèle + Beaucoup.",
+    "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo N&B : 2–4. Photo : 12–24.",
   "step3.hint.logo":
-    "Logo force 2–3 couleurs (sombre + blanc). Garde les blancs fermés : yeux, nez, trous de lettres. Peu/Auto/Beaucoup ignorés — Fidèle pour les gris.",
+    "Logo aplatit en sombre + blancs fermés (yeux, lettres). Palette plafonnée à 4. Montez le détail pour des contours plus nets.",
+  "step3.hint.general":
+    "Général conserve ombres et tons. Peu de détail = chemins plus propres ; beaucoup = plus de nœuds. Photos douces : 8–16 niveaux.",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",

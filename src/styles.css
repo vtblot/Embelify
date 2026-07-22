@@ -366,6 +366,36 @@ body {
   min-width: 0;
 }
 
+.slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.slider-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent, #e8ff6b);
+  font-variant-numeric: tabular-nums;
+}
+
+.step-extra input[type="range"] {
+  width: 100%;
+  margin: 0.45rem 0 0.15rem;
+  accent-color: var(--accent, #e8ff6b);
+  cursor: pointer;
+}
+
+.slider-ends {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.72rem;
+  color: var(--muted, #8a9a90);
+}
+
 select {
   appearance: none;
   background: var(--ink-soft)

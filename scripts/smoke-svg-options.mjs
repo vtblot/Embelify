@@ -1,67 +1,55 @@
 /** Mirrors src/lib/svgOptions.ts — keep in sync when presets change. */
-function resolveSvgTraceOptions(style = "logo", colors = "few") {
-  const COLOR_COUNT = { few: 6, auto: 12, many: 24 };
-  const numberofcolors = COLOR_COUNT[colors] ?? 12;
-
-  if (style === "logo") {
-    return {
-      pathomit: 8,
-      numberofcolors: 3,
-      linefilter: true,
-      colorsampling: 0,
-      blurradius: 0,
-      pal: true,
-    };
-  }
-  if (style === "faithful") {
-    return {
-      pathomit: 2,
-      numberofcolors: Math.max(numberofcolors, 24),
-      linefilter: false,
-      colorsampling: 2,
-      blurradius: 0,
-    };
-  }
-  if (style === "detailed") {
-    return {
-      pathomit: 4,
-      numberofcolors: Math.max(numberofcolors, 16),
-      linefilter: false,
-      colorsampling: 2,
-      blurradius: 0,
-    };
-  }
-  if (style === "balanced") {
-    return {
-      pathomit: colors === "few" ? 8 : 12,
-      numberofcolors,
-      linefilter: true,
-      colorsampling: 2,
-      blurradius: 0,
-    };
-  }
-  const pathomit = colors === "few" ? 8 : colors === "auto" ? 14 : 20;
+function clamp(n, lo, hi) {
+  return Math.min(hi, Math.max(lo, n));
+}
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+function detailToTrace(detail) {
+  const t = (clamp(detail, 1, 10) - 1) / 9;
   return {
-    pathomit,
-    numberofcolors: Math.min(numberofcolors, 10),
-    linefilter: true,
-    blurradius: 0,
+    ltres: lerp(2.4, 0.25, t),
+    pathomit: Math.round(lerp(28, 0, t)),
+    linefilter: detail <= 6,
+  };
+}
+function resolveSvgTraceOptions({ mode = "logo", detail = 5, palette = 3 } = {}) {
+  detail = clamp(Math.round(detail), 1, 10);
+  palette = clamp(Math.round(palette), 2, 32);
+  const path = detailToTrace(detail);
+  if (mode === "logo") {
+    palette = clamp(palette, 2, 4);
+    return {
+      ...path,
+      numberofcolors: palette <= 3 ? 3 : palette,
+      colorsampling: palette <= 3 ? 0 : 2,
+      pal: palette <= 3,
+      colorquantcycles: 1,
+    };
+  }
+  return {
+    ...path,
+    numberofcolors: palette,
     colorsampling: 2,
+    pal: false,
   };
 }
 
-const logo = resolveSvgTraceOptions("logo", "few");
-const faithful = resolveSvgTraceOptions("faithful", "many");
-const cleanFew = resolveSvgTraceOptions("clean", "few");
+const logo = resolveSvgTraceOptions({ mode: "logo", detail: 5, palette: 3 });
+const logoGray = resolveSvgTraceOptions({ mode: "logo", detail: 4, palette: 4 });
+const general = resolveSvgTraceOptions({ mode: "general", detail: 8, palette: 16 });
+const simple = resolveSvgTraceOptions({ mode: "general", detail: 1, palette: 8 });
 
+if (!logo.pal) throw new Error("logo ≤3 should use fixed pal");
 if (logo.numberofcolors !== 3) throw new Error(`logo colors: ${logo.numberofcolors}`);
-if (!logo.pal) throw new Error("logo must use fixed palette");
-if (logo.colorsampling !== 0) throw new Error("logo should disable sampling");
-if (faithful.numberofcolors < 24) throw new Error(`faithful colors: ${faithful.numberofcolors}`);
-if (cleanFew.pathomit > 12) throw new Error(`few pathomit too high: ${cleanFew.pathomit}`);
+if (logoGray.numberofcolors !== 4) throw new Error(`logo gray: ${logoGray.numberofcolors}`);
+if (general.numberofcolors !== 16) throw new Error(`general colors: ${general.numberofcolors}`);
+if (general.pathomit >= simple.pathomit) throw new Error("high detail should omit fewer paths");
+if (simple.ltres <= general.ltres) throw new Error("low detail should be smoother (higher ltres)");
 
 console.log("SVG_OPTIONS_OK", {
   logo: logo.numberofcolors,
-  faithful: faithful.numberofcolors,
-  fewOmit: cleanFew.pathomit,
+  logoGray: logoGray.numberofcolors,
+  general: general.numberofcolors,
+  detailOmit: { simple: simple.pathomit, fine: general.pathomit },
 });
