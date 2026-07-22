@@ -94,10 +94,9 @@ export type Dict = {
   "badge.done.ready": string;
   "footer.privacy": string;
   "footer.terms": string;
-  "footer.company": string;
-  "footer.sister": string;
+  "footer.edition": string;
+  "footer.related": string;
   "footer.lang": string;
-  "sister.blurb": string;
   "terms.title": string;
   "terms.back": string;
   "terms.h1": string;
@@ -219,10 +218,9 @@ export const en: Dict = {
   "badge.done.ready": "Ready to download",
   "footer.privacy": "No user storage · processing 100% in your browser",
   "footer.terms": "Terms of use",
-  "footer.company": "Embelify is a Baggero tool",
-  "footer.sister": "Also",
+  "footer.edition": "Embelify, published by Baggero",
+  "footer.related": "Another product from the group:",
   "footer.lang": "Language",
-  "sister.blurb": "Same company as Spektrografy — separate product & domain.",
   "terms.title": "Embelify — Terms of use",
   "terms.back": "← Back to Embelify",
   "terms.h1": "Terms of use",
@@ -356,11 +354,9 @@ export const fr: Dict = {
   "badge.done.ready": "Prêt à télécharger",
   "footer.privacy": "Aucun stockage utilisateur · traitement 100 % dans votre navigateur",
   "footer.terms": "CGU",
-  "footer.company": "Embelify est un outil Baggero",
-  "footer.sister": "Aussi",
+  "footer.edition": "Embelify, édité par Baggero",
+  "footer.related": "Autre produit du groupe :",
   "footer.lang": "Langue",
-  "sister.blurb":
-    "Même entreprise que Spektrografy — produit et domaine distincts.",
   "terms.title": "Embelify — Conditions générales d’utilisation",
   "terms.back": "← Retour à Embelify",
   "terms.h1": "Conditions générales d’utilisation",

@@ -40,6 +40,5 @@ export const BRAND = {
   spektrografy: {
     name: "Spektrografy",
     url: spektrografyUrl,
-    blurbKey: "sister.blurb" as const,
   },
 } as const;
