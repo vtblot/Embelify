@@ -99,7 +99,18 @@
         </fieldset>
 
         <div class="actions">
-          <button type="submit" class="cta" id="submit-btn" data-i18n="actions.recompute">Recompute</button>
+          <button
+            type="submit"
+            class="cta"
+            id="submit-btn"
+            data-i18n="actions.recompute"
+            data-i18n-title="actions.recompute.hint"
+          >
+            Recompute
+          </button>
+          <p class="action-hint" data-i18n="actions.recompute.hint">
+            Forces a new run with the current options. Changing a setting already refreshes the preview automatically.
+          </p>
           <p class="status" id="status" role="status" aria-live="polite" data-i18n="status.drop">Drop an image to see a live preview.</p>
         </div>
       </form>

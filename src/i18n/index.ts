@@ -50,6 +50,11 @@ export function applyStaticI18n(root: ParentNode = document) {
     if (!key) return;
     el.setAttribute("aria-label", t(key));
   });
+  root.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => {
+    const key = el.dataset.i18nTitle as keyof Dict | undefined;
+    if (!key) return;
+    el.setAttribute("title", t(key));
+  });
   root.querySelectorAll<HTMLOptionElement>("option[data-i18n]").forEach((el) => {
     const key = el.dataset.i18n as keyof Dict | undefined;
     if (!key) return;

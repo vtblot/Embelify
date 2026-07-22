@@ -454,6 +454,14 @@ select {
   cursor: wait;
 }
 
+.action-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--mist);
+  opacity: 0.75;
+}
+
 .status {
   margin: 0;
   min-height: 1.25rem;

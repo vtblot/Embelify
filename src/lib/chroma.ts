@@ -244,6 +244,155 @@ function recolorEdgesFromInterior(
 }
 
 /**
+ * Peel light / washed fringe off dark silhouettes (gray-white smudges on logos).
+ * Walks inward from transparency through light pixels only, and stops at the dark body.
+ * Skipped for bright subjects on dark bg (cream cells, white icons) so they stay intact.
+ */
+function peelLightFringeFromDarkSubjects(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  bg: Rgb,
+): void {
+  const bgL = luma(bg[0], bg[1], bg[2]);
+  if (bgL > 90) return;
+
+  const LIGHT = 140; // washed smudge / white haze
+  const DARK = 95; // treat as solid body — BFS must not cross
+
+  let darkOpaque = 0;
+  let brightOpaque = 0;
+  let totalOpaque = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 200) continue;
+    totalOpaque += 1;
+    const L = luma(data[i], data[i + 1], data[i + 2]);
+    if (L < DARK) darkOpaque += 1;
+    else if (L > LIGHT) brightOpaque += 1;
+  }
+  if (totalOpaque < 16) return;
+  // Cream / white logo on dark bg — peeling would erase the subject
+  if (brightOpaque / totalOpaque > 0.4) return;
+  if (darkOpaque / totalOpaque < 0.3) return;
+
+  const remove = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  let qh = 0;
+  let qt = 0;
+
+  const trySeed = (x: number, y: number) => {
+    const idx = y * w + x;
+    if (remove[idx]) return;
+    const i = idx * 4;
+    if (data[i + 3] < 16) return;
+    const L = luma(data[i], data[i + 1], data[i + 2]);
+    if (L < LIGHT && data[i + 3] >= 160) return;
+    // Seed: light (or soft-alpha) pixel on the transparent border
+    if (!touchesTransparent(data, w, h, x, y, 1)) return;
+    remove[idx] = 1;
+    queue[qt++] = idx;
+  };
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) trySeed(x, y);
+  }
+
+  while (qh < qt) {
+    const idx = queue[qh++];
+    const x = idx % w;
+    const y = (idx / w) | 0;
+    const neigh = [
+      [x - 1, y],
+      [x + 1, y],
+      [x, y - 1],
+      [x, y + 1],
+    ] as const;
+    for (const [nx, ny] of neigh) {
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const nidx = ny * w + nx;
+      if (remove[nidx]) continue;
+      const ni = nidx * 4;
+      if (data[ni + 3] < 16) continue;
+      const nL = luma(data[ni], data[ni + 1], data[ni + 2]);
+      // Soft haze can be mid-luma — still peel if very transparent
+      const soft = data[ni + 3] < 160;
+      if (!soft && nL < LIGHT) continue;
+      if (!soft && nL < DARK) continue;
+      remove[nidx] = 1;
+      queue[qt++] = nidx;
+    }
+  }
+
+  let removeCount = 0;
+  for (let i = 0; i < remove.length; i++) if (remove[i]) removeCount += 1;
+  // Safety valve: never wipe a huge share of the matte
+  if (removeCount > totalOpaque * 0.2) return;
+
+  for (let i = 0; i < remove.length; i++) {
+    if (remove[i]) data[i * 4 + 3] = 0;
+  }
+}
+
+/**
+ * Drop thin washed edge crumbs after un-premultiply (1–2 px gray haze).
+ */
+function cleanWashedFringe(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  bg: Rgb,
+): void {
+  const bgL = luma(bg[0], bg[1], bg[2]);
+  if (bgL > 90) return;
+
+  const snapshot = new Uint8ClampedArray(data);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const a = snapshot[i + 3];
+      if (a < 8) continue;
+      if (!touchesTransparent(snapshot, w, h, x, y, 2)) continue;
+
+      const L = luma(snapshot[i], snapshot[i + 1], snapshot[i + 2]);
+
+      let darkN = 0;
+      let brightN = 0;
+      let transparentN = 0;
+
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+            transparentN += 1;
+            continue;
+          }
+          const ni = (ny * w + nx) * 4;
+          if (snapshot[ni + 3] < 16) {
+            transparentN += 1;
+            continue;
+          }
+          const nL = luma(snapshot[ni], snapshot[ni + 1], snapshot[ni + 2]);
+          if (nL < 70) darkN += 1;
+          else if (nL > 140) brightN += 1;
+        }
+      }
+
+      if (a < 160 && transparentN >= 3) {
+        data[i + 3] = 0;
+        continue;
+      }
+
+      if (L > 140 && transparentN >= 2 && darkN >= 1 && brightN <= 6) {
+        data[i + 3] = 0;
+      }
+    }
+  }
+}
+
+/**
  * Remove thin dark outlines left on shapes (AA against a dark bg / upscale halo).
  * Only touches near-black pixels whose neighbors are mostly bright or transparent.
  */
@@ -376,18 +525,25 @@ export function removeSolidBackground(canvas: HTMLCanvasElement): HTMLCanvasElem
 
       const t = (d - HARD_DIST) / (SOFT_DIST - HARD_DIST);
       const factor = Math.max(0, Math.min(1, t));
-      data[i + 3] = Math.round(data[i + 3] * factor * factor);
+      const nextA = Math.round(data[i + 3] * factor * factor);
+      // Near-invisible soft fringe reads as gray haze on the checkerboard — drop it.
+      data[i + 3] = nextA < 40 ? 0 : nextA;
     }
   }
 
   decontaminateEdges(data, w, h, bg);
   cleanDarkHalos(data, w, h);
+  cleanWashedFringe(data, w, h, bg);
+  peelLightFringeFromDarkSubjects(data, w, h, bg);
   decontaminateEdges(data, w, h, bg);
+  cleanWashedFringe(data, w, h, bg);
 
   // Crop ~1–2 fringe pixels around every shape, then unify edge colors
   erodeAlpha(data, w, h, 2);
   recolorEdgesFromInterior(data, w, h);
   cleanDarkHalos(data, w, h);
+  cleanWashedFringe(data, w, h, bg);
+  peelLightFringeFromDarkSubjects(data, w, h, bg);
 
   const out = document.createElement("canvas");
   out.width = w;
