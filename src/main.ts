@@ -99,9 +99,14 @@ function syncBgUi() {
 
 function syncSvgUi() {
   const svgOn = toSvgToggle.checked;
+  const isLogo = svgStyleSelect.value === "logo";
   svgStyleWrap.hidden = !svgOn;
-  svgColorsWrap.hidden = !svgOn;
+  // Logo forces a fixed 2–3 color palette — Colors would do nothing
+  svgColorsWrap.hidden = !svgOn || isLogo;
   svgHint.hidden = !svgOn;
+  if (svgOn) {
+    svgHint.textContent = t(isLogo ? "step3.hint.logo" : "step3.hint");
+  }
 }
 
 function setStatus(message: string, isError = false) {
@@ -415,6 +420,7 @@ svgStyleSelect.addEventListener("change", () => {
   if (svgStyleSelect.value === "logo" && svgColorsSelect.value === "many") {
     svgColorsSelect.value = "few";
   }
+  syncSvgUi();
   scheduleLiveRun();
 });
 svgColorsSelect.addEventListener("change", scheduleLiveRun);
