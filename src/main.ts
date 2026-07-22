@@ -401,6 +401,13 @@ fileInput.addEventListener("change", () => {
 upscaleSelect.addEventListener("change", scheduleLiveRun);
 toSvgToggle.addEventListener("change", () => {
   syncSvgUi();
+  // Enabling SVG: steer toward Logo flatten (2–4 colors), not Faithful+Many banding
+  if (toSvgToggle.checked) {
+    if (svgStyleSelect.value === "faithful" || svgStyleSelect.value === "clean") {
+      svgStyleSelect.value = "logo";
+    }
+    if (svgColorsSelect.value === "many") svgColorsSelect.value = "few";
+  }
   scheduleLiveRun();
 });
 svgStyleSelect.addEventListener("change", scheduleLiveRun);

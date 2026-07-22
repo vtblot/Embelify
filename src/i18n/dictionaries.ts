@@ -31,6 +31,7 @@ export type Dict = {
   "step3.optional": string;
   "step3.desc": string;
   "step3.style": string;
+  "step3.style.logo": string;
   "step3.style.faithful": string;
   "step3.style.clean": string;
   "step3.style.balanced": string;
@@ -135,18 +136,19 @@ export const en: Dict = {
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "Vectorizes logos / simple shapes. Gradients are simplified — leave off for a PNG that matches your source.",
+    "Turns your cutout into a vector logo. Use Logo for dark marks with white features; Faithful + Many only if you need gray shading.",
   "step3.style": "Style",
-  "step3.style.faithful": "Faithful — closer to the PNG",
-  "step3.style.clean": "Clean — flat logo, posterize",
+  "step3.style.logo": "Logo — flat 2–4 colors",
+  "step3.style.faithful": "Faithful — shaded (many grays)",
+  "step3.style.clean": "Clean — flat mark, posterize",
   "step3.style.balanced": "Balanced",
   "step3.style.detailed": "Detailed — keep fine edges",
   "step3.colors": "Colors",
   "step3.colors.few": "Few (6)",
-  "step3.colors.auto": "Auto (10)",
-  "step3.colors.many": "Many (16)",
+  "step3.colors.auto": "Auto (12)",
+  "step3.colors.many": "Many (24)",
   "step3.hint":
-    "For the same look as your source, keep SVG off and download the transparent PNG. Clean + Few flattens shaded logos.",
+    "Logo SVG recipe: Solid color → Exterior → Logo. Snaps mid-grays to the dark body; keeps only bright enclosed islands (eyes/nose).",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
@@ -254,18 +256,19 @@ export const fr: Dict = {
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Vectorise logos / formes simples. Les dégradés sont simplifiés — laissez off pour un PNG fidèle à la source.",
+    "Transforme le détourage en logo vectoriel. Logo pour un aplat sombre à yeux blancs ; Fidèle + Beaucoup seulement si vous voulez les gris.",
   "step3.style": "Style",
-  "step3.style.faithful": "Fidèle — plus proche du PNG",
-  "step3.style.clean": "Propre — logo plat, posterise",
+  "step3.style.logo": "Logo — aplat 2–4 couleurs",
+  "step3.style.faithful": "Fidèle — ombré (beaucoup de gris)",
+  "step3.style.clean": "Propre — aplat, posterise",
   "step3.style.balanced": "Équilibré",
   "step3.style.detailed": "Détaillé — garde les fins contours",
   "step3.colors": "Couleurs",
   "step3.colors.few": "Peu (6)",
-  "step3.colors.auto": "Auto (10)",
-  "step3.colors.many": "Beaucoup (16)",
+  "step3.colors.auto": "Auto (12)",
+  "step3.colors.many": "Beaucoup (24)",
   "step3.hint":
-    "Pour le même rendu que votre source, laissez SVG off et téléchargez le PNG transparent. Propre + Peu aplatit les logos ombrés.",
+    "Recette logo SVG : Couleur unie → Extérieur → Logo. Force les gris vers le corps sombre ; ne garde que les îlots blancs (yeux/nez).",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",

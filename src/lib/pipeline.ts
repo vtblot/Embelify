@@ -32,9 +32,9 @@ export type PipelineOptions = {
   /** exterior = keep eyes/holes; interior = also clear enclosed bg */
   cutScope?: CutScope;
   toSvg: boolean;
-  /** SVG vectorization style — clean suits logos; detailed keeps more paths. */
+  /** SVG vectorization style — logo flattens to 2–4 colors; faithful keeps shading. */
   svgStyle?: SvgStyle;
-  /** SVG palette size. */
+  /** SVG palette size (ignored ceiling for logo style — capped at 4). */
   svgColors?: SvgColors;
   signal?: AbortSignal;
   onProgress?: (message: string) => void;
@@ -447,13 +447,15 @@ function rasterToSvgInWorker(
 
 async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Promise<string> {
   throwIfAborted(opts.signal);
-  const style = opts.svgStyle ?? "faithful";
-  const colors = opts.svgColors ?? "many";
+  const style = opts.svgStyle ?? "logo";
+  const colors = opts.svgColors ?? (style === "logo" ? "few" : "many");
   const trace = resolveSvgTraceOptions(style, colors);
   canvas = prepareCanvasForSvg(canvas, style);
   progress(
     opts,
-    `Vectorisation SVG (${style}, ${trace.numberofcolors} couleurs)…`,
+    style === "logo"
+      ? `Vectorisation SVG logo (aplat 2–${trace.numberofcolors} couleurs)…`
+      : `Vectorisation SVG (${style}, ${trace.numberofcolors} couleurs)…`,
   );
   try {
     return await rasterToSvgInWorker(canvas, trace);

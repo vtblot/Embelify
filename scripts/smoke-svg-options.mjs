@@ -1,12 +1,21 @@
 /** Mirrors src/lib/svgOptions.ts — keep in sync when presets change. */
-function resolveSvgTraceOptions(style = "faithful", colors = "many") {
-  const COLOR_COUNT = { few: 6, auto: 10, many: 16 };
-  const numberofcolors = COLOR_COUNT[colors] ?? 10;
+function resolveSvgTraceOptions(style = "logo", colors = "few") {
+  const COLOR_COUNT = { few: 6, auto: 12, many: 24 };
+  const numberofcolors = COLOR_COUNT[colors] ?? 12;
 
+  if (style === "logo") {
+    return {
+      pathomit: 8,
+      numberofcolors: Math.min(Math.max(numberofcolors, 2), 4),
+      linefilter: true,
+      colorsampling: 2,
+      blurradius: 0,
+    };
+  }
   if (style === "faithful") {
     return {
       pathomit: 2,
-      numberofcolors: Math.max(numberofcolors, 16),
+      numberofcolors: Math.max(numberofcolors, 24),
       linefilter: false,
       colorsampling: 2,
       blurradius: 0,
@@ -15,7 +24,7 @@ function resolveSvgTraceOptions(style = "faithful", colors = "many") {
   if (style === "detailed") {
     return {
       pathomit: 4,
-      numberofcolors: Math.max(numberofcolors, 12),
+      numberofcolors: Math.max(numberofcolors, 16),
       linefilter: false,
       colorsampling: 2,
       blurradius: 0,
@@ -40,20 +49,24 @@ function resolveSvgTraceOptions(style = "faithful", colors = "many") {
   };
 }
 
+const logo = resolveSvgTraceOptions("logo", "few");
+const logoMany = resolveSvgTraceOptions("logo", "many");
 const faithful = resolveSvgTraceOptions("faithful", "many");
 const cleanFew = resolveSvgTraceOptions("clean", "few");
-const detailed = resolveSvgTraceOptions("detailed", "many");
 
-if (faithful.numberofcolors < 16) throw new Error(`faithful colors: ${faithful.numberofcolors}`);
+if (logo.numberofcolors > 4) throw new Error(`logo colors: ${logo.numberofcolors}`);
+if (logo.numberofcolors < 2) throw new Error(`logo colors too low: ${logo.numberofcolors}`);
+if (!logo.linefilter) throw new Error("logo should linefilter");
+if (logoMany.numberofcolors > 4) throw new Error(`logo+many must cap at 4: ${logoMany.numberofcolors}`);
+if (faithful.numberofcolors < 24) throw new Error(`faithful colors: ${faithful.numberofcolors}`);
 if (faithful.pathomit > 4) throw new Error(`faithful pathomit too high: ${faithful.pathomit}`);
 if (faithful.linefilter) throw new Error("faithful should not linefilter");
 if (cleanFew.numberofcolors !== 6) throw new Error(`few colors: ${cleanFew.numberofcolors}`);
-if (cleanFew.pathomit > 12) throw new Error(`few pathomit too high: ${cleanFew.pathomit}`);
-if (detailed.pathomit > cleanFew.pathomit) throw new Error("detailed should omit fewer than clean");
 
 console.log("SVG_OPTIONS_OK", {
+  logo: logo.numberofcolors,
+  logoMany: logoMany.numberofcolors,
   faithful: faithful.numberofcolors,
   few: cleanFew.numberofcolors,
   fewOmit: cleanFew.pathomit,
-  detailed: detailed.numberofcolors,
 });

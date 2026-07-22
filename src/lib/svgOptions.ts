@@ -1,5 +1,5 @@
 /** User-facing SVG quality presets. */
-export type SvgStyle = "faithful" | "clean" | "balanced" | "detailed";
+export type SvgStyle = "logo" | "faithful" | "clean" | "balanced" | "detailed";
 /** Palette size for ImageTracer quantization. */
 export type SvgColors = "few" | "auto" | "many";
 
@@ -20,28 +20,49 @@ export type SvgTraceOptions = {
 
 const COLOR_COUNT: Record<SvgColors, number> = {
   few: 6,
-  auto: 10,
-  many: 16,
+  auto: 12,
+  many: 24,
 };
 
 /**
  * Map UI presets → ImageTracer knobs.
- * Default "faithful" keeps more colors / detail so the SVG is closer to the PNG.
- * Clean + Few posterizes — fine for flat marks, not for shaded logos.
+ *
+ * "logo" = default for dark marks with white features (eyes/nose): flatten
+ * preprocess + 2–4 color trace. Avoids Faithful+Many banding / false ear fills.
+ * "faithful" + many preserves shading (accepts gray bands).
+ * "clean" + few posterizes without the enclosed-island flatten.
  */
 export function resolveSvgTraceOptions(
-  style: SvgStyle = "faithful",
-  colors: SvgColors = "many",
+  style: SvgStyle = "logo",
+  colors: SvgColors = "few",
 ): SvgTraceOptions {
-  const numberofcolors = COLOR_COUNT[colors] ?? 10;
+  const numberofcolors = COLOR_COUNT[colors] ?? 12;
+
+  if (style === "logo") {
+    return {
+      ltres: 1,
+      qtres: 1,
+      pathomit: 8,
+      colorsampling: 2,
+      // Flatten already forces ~2 colors; keep palette tiny so tracer can't invent bands
+      numberofcolors: Math.min(Math.max(numberofcolors, 2), 4),
+      strokewidth: 0,
+      blurradius: 0,
+      blurdelta: 20,
+      scale: 1,
+      viewbox: true,
+      linefilter: true,
+      rightangleenhance: true,
+    };
+  }
 
   if (style === "faithful") {
     return {
-      ltres: 0.4,
-      qtres: 0.4,
+      ltres: 0.35,
+      qtres: 0.35,
       pathomit: 2,
       colorsampling: 2,
-      numberofcolors: Math.max(numberofcolors, 16),
+      numberofcolors: Math.max(numberofcolors, 24),
       strokewidth: 0,
       blurradius: 0,
       blurdelta: 20,
@@ -58,7 +79,7 @@ export function resolveSvgTraceOptions(
       qtres: 0.5,
       pathomit: 4,
       colorsampling: 2,
-      numberofcolors: Math.max(numberofcolors, 12),
+      numberofcolors: Math.max(numberofcolors, 16),
       strokewidth: 0,
       blurradius: 0,
       blurdelta: 20,
