@@ -1119,10 +1119,10 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
     Math.max(18, Math.round(darkB / q)),
   ];
 
-  // Cream eyes/nose are often ~190–245 (not pure 255). Absolute 220 erased them.
-  // Rank vs dark body; size cap still rejects large ear fills.
-  const FEATURE_HI = Math.max(178, Math.min(210, Math.round(coreMean + 95)));
-  const FEATURE_LO = Math.max(150, Math.min(FEATURE_HI - 15, Math.round(coreMean + 70)));
+  // Cream eyes/nose often ~180–245 after Lanczos ×4. Keep vs dark body;
+  // size cap rejects large ear fills even if they're bright.
+  const FEATURE_HI = Math.max(165, Math.min(200, Math.round(coreMean + 70)));
+  const FEATURE_LO = Math.max(140, Math.min(FEATURE_HI - 10, Math.round(coreMean + 50)));
 
   // Label bright candidates; keep only components fully enclosed by dark body
   const brightLabel = new Int32Array(w * h);
@@ -1176,10 +1176,9 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
         }
       }
 
-      // Eyes/nose are small enclosed whites; reject fringe crumbs and ear-sized fills
-      // (0.12 let a large inner-ear triangle pass as a "feature")
-      const maxFeature = Math.max(48, Math.floor(opaqueN * 0.035));
-      if (!touchesClear && size >= 4 && size <= maxFeature) {
+      // Eyes/nose are small enclosed lights; reject fringe crumbs and ear-sized fills
+      const maxFeature = Math.max(64, Math.floor(opaqueN * 0.045));
+      if (!touchesClear && size >= 6 && size <= maxFeature) {
         keepLabels.add(nextLabel);
       }
       nextLabel += 1;

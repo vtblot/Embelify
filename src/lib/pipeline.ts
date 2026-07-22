@@ -1,6 +1,7 @@
 import {
   applyCutScope,
   cleanupCutoutEdges,
+  flattenLogoForSvg,
   hardenRasterForSvg,
   looksLikeFlatGraphic,
   removeSolidBackground,
@@ -394,12 +395,18 @@ async function removeBackgroundFromCanvas(
 
 /**
  * Scrub + harden matte before vectorize — AA gray rims become noisy SVG halos.
+ * Logo style: flatten only (no peel/scrub) — peel after ×4 was deleting cream eyes.
  */
 function prepareCanvasForSvg(
   canvas: HTMLCanvasElement,
   style: SvgStyle,
 ): HTMLCanvasElement {
   if (!canvasHasTransparency(canvas)) return canvas;
+  if (style === "logo") {
+    const flat = flattenLogoForSvg(canvas);
+    if (flat !== canvas) wipeCanvas(canvas);
+    return flat;
+  }
   const hardened = hardenRasterForSvg(canvas, style);
   if (hardened !== canvas) wipeCanvas(canvas);
   return hardened;
@@ -535,7 +542,9 @@ export async function runPipeline(
       canvas = await upscaleCanvas(canvas, opts.upscale, opts);
       throwIfAborted(opts.signal);
       // Final scrub after upscale — Lanczos can still soften ear tips to light crumbs
-      if (opts.removeBg) {
+      // Final scrub after upscale — Lanczos can still soften ear tips to light crumbs.
+      // Skip aggressive scrub when Logo SVG follows: peel was wiping cream eyes.
+      if (opts.removeBg && !(opts.toSvg && (opts.svgStyle ?? "logo") === "logo")) {
         const { canvas: scrubbed, removed } = scrubMismatchedEdgeColors(canvas, {
           maxPasses: (opts.edgeTighten ?? "normal") === "tight" ? 14 : 10,
           aggressive: true,
