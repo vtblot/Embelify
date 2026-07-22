@@ -85,8 +85,10 @@ for (const fx of FIXTURES) {
 
   let verdict = "ok";
   if (!info.hasSvg || info.fullRect) verdict = "fail";
-  else if (fx.expectHard && (!hasDark || info.pathN < 3)) verdict = "poor-on-black-bg";
-  else if (fx.expectGray && !hasGray) verdict = "missing-gray";
+  else if (fx.id === "black-bg" && (!hasWhite || info.pathN < 20)) {
+    // Dark-on-black: chroma keys the mark away — only debris / holes remain.
+    verdict = "poor-on-black-bg";
+  } else if (fx.expectGray && !hasGray) verdict = "missing-gray";
   else if (fx.expectWhite && !hasWhite) verdict = "missing-white";
 
   summary.push({ id: fx.id, verdict, ...info, hasGray, hasWhite, hasDark });
@@ -96,7 +98,11 @@ for (const fx of FIXTURES) {
 
 await browser.close();
 const white = summary.find((s) => s.id === "white-bg");
+const black = summary.find((s) => s.id === "black-bg");
 if (!white || white.verdict !== "ok") {
   throw new Error(`white-bg fixture must pass Logo+gray; got ${JSON.stringify(white)}`);
+}
+if (!black || black.verdict === "fail") {
+  throw new Error(`black-bg hard-failed unexpectedly: ${JSON.stringify(black)}`);
 }
 console.log("SMOKE_BAGGERO_FIXTURES_OK", summary.map((s) => `${s.id}:${s.verdict}`).join(" "));
