@@ -4,7 +4,9 @@ import {
   flattenLogoForSvg,
   hardenRasterForSvg,
   looksLikeFlatGraphic,
+  punchHybridMarkTextHoles,
   removeSolidBackground,
+  sampleLogoMidGray,
   scrubMismatchedEdgeColors,
   type CutScope,
   type EdgeTighten,
@@ -12,6 +14,7 @@ import {
 import type { SvgWorkerRequest, SvgWorkerResponse } from "./svg.worker";
 import {
   resolveSvgTraceOptions,
+  applyLogoMidGray,
   controlsFromLegacy,
   type SvgMode,
   type SvgSliderControls,
@@ -20,6 +23,7 @@ import {
   type SvgColors,
   type SvgStyle,
 } from "./svgOptions";
+import { polishLogoSvg } from "./svgPolish";
 
 export type UpscaleFactor = 1 | 2 | 4;
 /** auto: fond uni pour logos/aplats, IA pour photos */
@@ -34,7 +38,7 @@ export type PipelineOptions = {
   bgMode?: BgMode;
   /** Chroma / logo edge cleanup strength. */
   edgeTighten?: EdgeTighten;
-  /** exterior = keep eyes/holes; interior = also clear enclosed bg */
+  /** exterior = keep closed holes; interior = clear them; auto = eyes kept, letters cleared */
   cutScope?: CutScope;
   toSvg: boolean;
   /** SVG mode: logo flatten vs general image. */
@@ -334,7 +338,7 @@ async function removeBackgroundAi(
   // (hair / soft photo mattes must not be hardened).
   const logoLike = looksLikeFlatGraphic(canvas);
   const edge: EdgeTighten = opts.edgeTighten ?? "normal";
-  const scope: CutScope = opts.cutScope ?? "exterior";
+  const scope: CutScope = opts.cutScope ?? "auto";
   // Keep original pixels to restore white eyes / interior details
   const original = cloneCanvas(canvas);
 
@@ -385,8 +389,13 @@ async function removeBackgroundAi(
     raw = cleaned;
   }
 
-  if (scope === "exterior") {
-    progress(opts, "Contours extérieurs — restauration des détails intérieurs…");
+  if (scope === "exterior" || scope === "auto") {
+    progress(
+      opts,
+      scope === "auto"
+        ? "Contours mixtes — yeux du picto gardés, trous de lettres vidés…"
+        : "Contours extérieurs — restauration des détails intérieurs…",
+    );
     const restored = applyCutScope(raw, original, "exterior");
     wipeCanvas(raw);
     raw = restored;
@@ -398,6 +407,15 @@ async function removeBackgroundAi(
       reportResidue(removed);
       wipeCanvas(raw);
       raw = scrubbed;
+    } else {
+      wipeCanvas(scrubbed);
+    }
+    if (scope === "auto" && logoLike) {
+      const punched = punchHybridMarkTextHoles(raw);
+      if (punched !== raw) {
+        wipeCanvas(raw);
+        raw = punched;
+      }
     }
   }
   wipeCanvas(original);
@@ -426,7 +444,7 @@ async function removeBackgroundFromCanvas(
     progress(opts, "Suppression du fond uni (flood-fill depuis les bords)…");
     const out = removeSolidBackground(canvas, {
       edge: opts.edgeTighten ?? "normal",
-      scope: opts.cutScope ?? "exterior",
+      scope: opts.cutScope ?? "auto",
     });
     wipeCanvas(canvas);
     return out;
@@ -461,10 +479,11 @@ async function removeBackgroundFromCanvas(
 function prepareCanvasForSvg(
   canvas: HTMLCanvasElement,
   mode: SvgMode,
+  palette = 3,
 ): HTMLCanvasElement {
   if (!canvasHasTransparency(canvas)) return canvas;
   if (mode === "logo") {
-    const flat = flattenLogoForSvg(canvas);
+    const flat = flattenLogoForSvg(canvas, { keepGray: palette >= 4 });
     if (flat !== canvas) wipeCanvas(canvas);
     return flat;
   }
@@ -523,8 +542,12 @@ async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Pr
           palette: opts.svgPalette ?? (opts.svgMode === "general" ? 12 : 3),
         }
       : controlsFromLegacy(opts.svgStyle, opts.svgColors);
-  const trace = resolveSvgTraceOptions(controls);
-  canvas = prepareCanvasForSvg(canvas, controls.mode);
+  let trace = resolveSvgTraceOptions(controls);
+  canvas = prepareCanvasForSvg(canvas, controls.mode, controls.palette);
+  if (controls.mode === "logo" && controls.palette >= 4) {
+    const gray = sampleLogoMidGray(canvas);
+    if (gray) trace = applyLogoMidGray(trace, { r: gray[0], g: gray[1], b: gray[2] });
+  }
   progress(
     opts,
     controls.mode === "logo"
@@ -532,14 +555,16 @@ async function canvasToSvg(canvas: HTMLCanvasElement, opts: PipelineOptions): Pr
       : `Vectorisation SVG (détail ${controls.detail}, ${trace.numberofcolors} niveaux)…`,
   );
   try {
-    return await rasterToSvgInWorker(canvas, trace);
+    const raw = await rasterToSvgInWorker(canvas, trace);
+    return controls.mode === "logo" ? polishLogoSvg(raw) : raw;
   } catch (err) {
     console.warn("Worker SVG indisponible, fallback main thread:", err);
     const ImageTracer = (await import("imagetracerjs")).default;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) throw new Error("Canvas 2D indisponible.");
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    return ImageTracer.imagedataToSVG(imageData, trace);
+    const raw = ImageTracer.imagedataToSVG(imageData, trace);
+    return controls.mode === "logo" ? polishLogoSvg(raw) : raw;
   }
 }
 

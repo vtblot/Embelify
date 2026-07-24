@@ -44,13 +44,27 @@ function lerp(a: number, b: number, t: number): number {
 
 /**
  * Map detail 1–10 → ImageTracer path tolerances.
- * Low detail = smoother / fewer nodes; high = follow fine edges.
+ * Logo uses a gentler omit curve so thin wordmark stems survive at mid detail.
+ * General keeps a wider range for photos.
  */
-function detailToTrace(detail: number): Pick<
+function detailToTrace(
+  detail: number,
+  mode: SvgMode,
+): Pick<
   SvgTraceOptions,
   "ltres" | "qtres" | "pathomit" | "linefilter" | "rightangleenhance"
 > {
   const t = (clamp(detail, 1, 10) - 1) / 9;
+  if (mode === "logo") {
+    // Wide curve so Advanced "Contour detail" is visibly different at 1 vs 10.
+    return {
+      ltres: lerp(2.2, 0.2, t),
+      qtres: lerp(2.2, 0.2, t),
+      pathomit: Math.round(lerp(18, 0, t)),
+      linefilter: detail <= 3,
+      rightangleenhance: detail <= 8,
+    };
+  }
   return {
     ltres: lerp(2.4, 0.25, t),
     qtres: lerp(2.4, 0.25, t),
@@ -67,12 +81,12 @@ function detailToTrace(detail: number): Pick<
  * - General: full 2–32 levels for photos / multi-color art.
  */
 export function resolveSvgTraceOptions(
-  controls: SvgSliderControls = { mode: "logo", detail: 5, palette: 3 },
+  controls: SvgSliderControls = { mode: "logo", detail: 7, palette: 4 },
 ): SvgTraceOptions {
   const mode = controls.mode === "general" ? "general" : "logo";
   const detail = clamp(Math.round(controls.detail), 1, 10);
   let palette = clamp(Math.round(controls.palette), 2, 32);
-  const path = detailToTrace(detail);
+  const path = detailToTrace(detail, mode);
 
   if (mode === "logo") {
     // Logo flatten is built for a few tones — keep palette in 2–4
@@ -89,16 +103,22 @@ export function resolveSvgTraceOptions(
       viewbox: true,
     };
     if (palette <= 3) {
-      // Fixed body / white / transparent — stable eyes & letter holes
+      // Flat N&B. Transparent MUST be {0,0,0,a:0} (canvas zeros RGB on a=0).
       base.numberofcolors = 3;
       base.pal = [
-        { r: 28, g: 28, b: 30, a: 255 },
+        { r: 0, g: 0, b: 0, a: 255 },
         { r: 255, g: 255, b: 255, a: 255 },
         { r: 0, g: 0, b: 0, a: 0 },
       ];
     } else {
-      // 4 levels: allow one mid-gray without averaging away whites
-      base.colorsampling = 2;
+      // Black + mid-gray + white + clear — gray RGB may be refined after flatten
+      base.numberofcolors = 4;
+      base.pal = [
+        { r: 0, g: 0, b: 0, a: 255 },
+        { r: 110, g: 110, b: 112, a: 255 },
+        { r: 255, g: 255, b: 255, a: 255 },
+        { r: 0, g: 0, b: 0, a: 0 },
+      ];
     }
     return base;
   }
@@ -117,6 +137,24 @@ export function resolveSvgTraceOptions(
   };
 }
 
+/**
+ * Optional mid-gray override for Logo palette 4 (sampled after flatten).
+ */
+export function applyLogoMidGray(
+  trace: SvgTraceOptions,
+  gray: { r: number; g: number; b: number } | null | undefined,
+): SvgTraceOptions {
+  if (!gray || !trace.pal || trace.pal.length < 4) return trace;
+  const next = trace.pal.slice();
+  next[1] = {
+    r: Math.max(0, Math.min(255, Math.round(gray.r))),
+    g: Math.max(0, Math.min(255, Math.round(gray.g))),
+    b: Math.max(0, Math.min(255, Math.round(gray.b))),
+    a: 255,
+  };
+  return { ...trace, pal: next };
+}
+
 /** @deprecated — kept for older call sites / smokes during transition */
 export type SvgStyle = SvgMode | "faithful" | "clean" | "balanced" | "detailed";
 /** @deprecated */
@@ -129,7 +167,7 @@ export function controlsFromLegacy(
 ): SvgSliderControls {
   const colorMap: Record<SvgColors, number> = { few: 3, auto: 12, many: 24 };
   if (style === "logo" || !style) {
-    return { mode: "logo", detail: 5, palette: colorMap[colors ?? "few"] ?? 3 };
+    return { mode: "logo", detail: 7, palette: colorMap[colors ?? "few"] ?? 4 };
   }
   if (style === "clean") {
     return { mode: "general", detail: 3, palette: colorMap[colors ?? "few"] ?? 6 };

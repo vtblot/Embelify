@@ -1,0 +1,12 @@
+IMPORTANT — official Baggero logo only
+
+Put YOUR real file here (do not ask the agent to invent one):
+
+  public/baggero-logo.png
+
+How to give it to the agent:
+  1. In the project, replace public/baggero-logo.png with your PNG, or
+  2. Drag the real file into the Cursor chat as an attachment that lands
+     on disk (a chat screenshot/paste alone is NOT a usable file here).
+
+The agent must use that file as-is. Never regenerate or approximate it.

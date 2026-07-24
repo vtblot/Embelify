@@ -103,6 +103,12 @@ await page.evaluate(() => {
     mode.value = "chroma";
     mode.dispatchEvent(new Event("change", { bubbles: true }));
   }
+  const scope = document.getElementById("cut_scope");
+  if (scope instanceof HTMLSelectElement) {
+    // Board cells/ring centers must stay filled
+    scope.value = "exterior";
+    scope.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 });
 await page.setInputFiles("#file-input", "/tmp/board-chroma.png");
 

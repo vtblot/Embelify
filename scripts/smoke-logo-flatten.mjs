@@ -114,7 +114,7 @@ await page.evaluate(() => {
   const detail = document.getElementById("svg_detail");
   const palette = document.getElementById("svg_palette");
   if (detail instanceof HTMLInputElement) {
-    detail.value = "5";
+    detail.value = "7";
     detail.dispatchEvent(new Event("input", { bubbles: true }));
   }
   if (palette instanceof HTMLInputElement) {
@@ -174,10 +174,10 @@ function lumaOfFill(fill) {
 }
 
 const lumas = fills.map(lumaOfFill).filter((L) => L >= 0);
-// Mid-gray banding / off-white ear — not the dark body core (~18–80)
+// Mid-gray banding / off-white ear — not the dark body core (~0–80)
 const midGray = lumas.filter((L) => L > 90 && L < 200);
 const hasWhite = lumas.some((L) => L > 230);
-const hasDark = lumas.some((L) => L > 0 && L <= 90);
+const hasDark = lumas.some((L) => L >= 0 && L <= 90);
 
 console.log("fills", fills);
 console.log("lumas", lumas);

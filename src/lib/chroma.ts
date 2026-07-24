@@ -676,7 +676,7 @@ export function cleanupCutoutEdges(
  * - exterior: only remove background connected to the image edges; keep eyes / interior details
  * - interior: allow interior holes (AI default; chroma also keys enclosed bg pockets)
  */
-export type CutScope = "exterior" | "interior";
+export type CutScope = "exterior" | "interior" | "auto";
 
 /**
  * Dilate an opaque mask by `radius` (4-connected). Used to seal 1px cracks so
@@ -713,6 +713,7 @@ export function applyCutScope(
   original: HTMLCanvasElement,
   scope: CutScope,
 ): HTMLCanvasElement {
+  // auto = exterior restore first, then hybrid hole punch elsewhere
   if (scope === "interior") return cutout;
   if (cutout.width !== original.width || cutout.height !== original.height) {
     console.warn(
@@ -1043,23 +1044,22 @@ export function scrubMismatchedEdgeColors(
 }
 
 /**
- * Pre-SVG flatten for dark logos (black cat, marks with white eyes/nose only).
+ * Flatten a dark logo cutout for ImageTracer.
  *
- * Faithful+Many ImageTracer turns AA highlights + face shading into muddy
- * mid-gray bands and false light blobs (e.g. off-white triangle in an ear).
- * Exterior AI restore can also copy those light interior pixels back.
- *
- * Algorithm:
- * 1. Binary matte; measure dark core from opaque interior.
- * 2. Snap every opaque pixel below FEATURE_LO toward the dark core
- *    (kills mid-gray posterization on lit faces).
- * 3. Keep only bright enclosed islands (L ≥ FEATURE_HI, not touching
- *    transparency) as pure white — eyes/nose, not ear AA.
- * 4. Mid-bright non-islands (off-white ear fills, soft highlights) → dark core.
- *
- * Skipped for bright-dominant subjects (cream icons). Returns 2-color raster.
+ * - Always: hard matte, white eyes/nose kept, large letter counters cleared.
+ * - keepGray false (palette ≤3): snap all ink to pure black (flat N&B).
+ * - keepGray true (palette ≥4): keep one mid-gray tone for soft shading on
+ *   the pictogram, while stems stay black.
  */
-export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement {
+export type FlattenLogoOptions = {
+  keepGray?: boolean;
+};
+
+export function flattenLogoForSvg(
+  canvas: HTMLCanvasElement,
+  opts: FlattenLogoOptions = {},
+): HTMLCanvasElement {
+  const keepGray = Boolean(opts.keepGray);
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
   const w = canvas.width;
@@ -1072,8 +1072,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
   let opaqueN = 0;
   let brightN = 0;
   let lumaSum = 0;
-  const interiorLumas: number[] = [];
-  const interiorRgb: Rgb[] = [];
+  const inkLumas: number[] = [];
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1083,54 +1082,65 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
       const L = luma(data[i], data[i + 1], data[i + 2]);
       lumaSum += L;
       if (L > 180) brightN += 1;
+      if (L >= 140) continue;
       if (touchesTransparent(data, w, h, x, y, 2)) continue;
-      interiorLumas.push(L);
-      interiorRgb.push([data[i], data[i + 1], data[i + 2]]);
+      inkLumas.push(L);
     }
   }
 
-  if (opaqueN < 32 || interiorLumas.length < 16) return canvas;
-  const coreMean =
-    interiorLumas.reduce((a, b) => a + b, 0) / interiorLumas.length;
+  if (opaqueN < 32 || inkLumas.length < 16) return canvas;
+  const orderedInk = [...inkLumas].sort((a, b) => a - b);
+  const nInk = orderedInk.length;
+  // Dark body from lower percentile — mid-gray shading is often a minority of ink
+  // (pictogram vs wordmark), so a high percentile would still land on the body.
+  const coreMean = orderedInk[Math.floor(nInk * 0.12)]!;
+  const lightInk = orderedInk.filter((L) => L >= coreMean + 12);
+  const grayMean = lightInk.length
+    ? lightInk[Math.min(lightInk.length - 1, Math.floor(lightInk.length * 0.7))]!
+    : coreMean;
   const meanL = lumaSum / opaqueN;
-  // Cream / white marks — flattening would destroy the subject
   if (coreMean > 140 || meanL > 165 || brightN / opaqueN > 0.55) {
     return canvas;
   }
 
-  // Darkest quartile of interior = true body (ignore lit mid-grays)
-  const order = interiorLumas
-    .map((_, i) => i)
-    .sort((a, b) => interiorLumas[a] - interiorLumas[b]);
-  const q = Math.max(8, Math.floor(order.length * 0.25));
-  let darkR = 0;
-  let darkG = 0;
-  let darkB = 0;
-  for (let k = 0; k < q; k++) {
-    const c = interiorRgb[order[k]];
-    darkR += c[0];
-    darkG += c[1];
-    darkB += c[2];
+  const coreRgb: Rgb = [0, 0, 0];
+  const graySpread = grayMean - coreMean;
+  const canKeepGray =
+    keepGray &&
+    graySpread >= 12 &&
+    lightInk.length >= Math.max(24, Math.floor(nInk * 0.012));
+  let grayRgb: Rgb = [110, 110, 112];
+  if (canKeepGray) {
+    // Keep shading a bit lighter than the dark core — avoid crushing to near-black.
+    const g = Math.max(72, Math.min(155, Math.round(grayMean)));
+    grayRgb = [g, g, Math.min(255, g + 2)];
   }
-  // Lift slightly off pure black so ImageTracer won't merge body with a=0 RGB(0,0,0)
-  const coreRgb: Rgb = [
-    Math.max(18, Math.round(darkR / q)),
-    Math.max(18, Math.round(darkG / q)),
-    Math.max(18, Math.round(darkB / q)),
-  ];
 
-  // Cream eyes/nose often ~180–245 after Lanczos ×4. Keep vs dark body;
-  // size cap rejects large ear fills even if they're bright.
   const FEATURE_HI = Math.max(165, Math.min(200, Math.round(coreMean + 70)));
   const FEATURE_LO = Math.max(140, Math.min(FEATURE_HI - 10, Math.round(coreMean + 50)));
+  const GRAY_LO = canKeepGray
+    ? Math.max(coreMean + 5, Math.min(FEATURE_LO - 12, (coreMean + grayMean) / 2))
+    : 999;
+  const GRAY_HI = canKeepGray ? Math.min(FEATURE_LO - 2, 155) : 0;
 
-  // Label bright candidates; keep only components fully enclosed by dark body
+  const origL = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const j = i * 4;
+    if (data[j + 3] < 16) {
+      origL[i] = -1;
+      continue;
+    }
+    origL[i] = luma(data[j], data[j + 1], data[j + 2]);
+  }
+
   const brightLabel = new Int32Array(w * h);
   const queue = new Int32Array(w * h);
   let nextLabel = 1;
-  const keepLabels = new Set<number>();
-  // Scale-aware: ear-tip AA sits near the cutout edge; letter counters do not
+  const keepWhite = new Set<number>();
+  const punchClear = new Set<number>();
   const rimProbe = Math.max(5, Math.round(Math.min(w, h) * 0.02));
+  const minSide = Math.min(w, h);
+  const eyeArea = Math.floor(Math.PI * Math.max(7, minSide * 0.09) ** 2);
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1174,7 +1184,6 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
               nearRim = true;
               continue;
             }
-            // Grow through near-white only — stops at dark body (enclosed island)
             if (luma(data[ni], data[ni + 1], data[ni + 2]) < FEATURE_LO) continue;
             brightLabel[nidx] = nextLabel;
             queue[qt++] = nidx;
@@ -1182,10 +1191,9 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
         }
       }
 
-      // Keep enclosed bright islands: eyes, nose, letter counters (B/A/O…).
-      // Drop rim-adjacent blobs (ear-tip AA) and tiny crumbs.
       if (!touchesClear && !nearRim && size >= 6) {
-        keepLabels.add(nextLabel);
+        if (size <= eyeArea) keepWhite.add(nextLabel);
+        else punchClear.add(nextLabel);
       }
       nextLabel += 1;
     }
@@ -1193,18 +1201,25 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
 
   for (let i = 0; i < w * h; i++) {
     const j = i * 4;
-    if (data[j + 3] < 16) {
-      // Sentinel RGB on clear pixels — keeps dark body out of the tracer's "hole" bucket
+    if (data[j + 3] < 16 || punchClear.has(brightLabel[i])) {
       data[j] = 0;
-      data[j + 1] = 255;
+      data[j + 1] = 0;
       data[j + 2] = 0;
       data[j + 3] = 0;
       continue;
     }
-    if (keepLabels.has(brightLabel[i])) {
+    if (keepWhite.has(brightLabel[i])) {
       data[j] = 255;
       data[j + 1] = 255;
       data[j + 2] = 255;
+      data[j + 3] = 255;
+      continue;
+    }
+    const L = origL[i];
+    if (keepGray && L >= GRAY_LO && L <= GRAY_HI) {
+      data[j] = grayRgb[0];
+      data[j + 1] = grayRgb[1];
+      data[j + 2] = grayRgb[2];
       data[j + 3] = 255;
     } else {
       data[j] = coreRgb[0];
@@ -1214,7 +1229,6 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
     }
   }
 
-  // Soft AA ring around white features → hard white or hard dark
   const snap = new Uint8ClampedArray(data);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -1241,7 +1255,7 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
         data[i] = 255;
         data[i + 1] = 255;
         data[i + 2] = 255;
-      } else if (darkNeigh >= 2) {
+      } else if (darkNeigh >= 2 && L < GRAY_LO) {
         data[i] = coreRgb[0];
         data[i + 1] = coreRgb[1];
         data[i + 2] = coreRgb[2];
@@ -1256,6 +1270,28 @@ export function flattenLogoForSvg(canvas: HTMLCanvasElement): HTMLCanvasElement 
   if (!outCtx) throw new Error("Canvas 2D indisponible.");
   outCtx.putImageData(image, 0, 0);
   return out;
+}
+
+/**
+ * Median mid-gray from a flattened Logo canvas (L 50–170, opaque).
+ * Used to align ImageTracer's fixed gray bucket with the actual mark.
+ */
+export function sampleLogoMidGray(canvas: HTMLCanvasElement): Rgb | null {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const samples: number[] = [];
+  for (let i = 0; i < width * height; i++) {
+    const j = i * 4;
+    if (data[j + 3] < 200) continue;
+    const L = luma(data[j], data[j + 1], data[j + 2]);
+    if (L < 50 || L > 170) continue;
+    samples.push(L);
+  }
+  if (samples.length < 16) return null;
+  samples.sort((a, b) => a - b);
+  const g = Math.round(samples[Math.floor(samples.length * 0.55)]!);
+  return [g, g, Math.min(255, g + 2)];
 }
 
 /**
@@ -1390,6 +1426,215 @@ export function hardenRasterForSvg(
 }
 
 /**
+ * Hybrid hole policy for mark + wordmark composites (cat + BAGGERO):
+ * - Detect the main pictogram (largest compact dark component).
+ * - Keep small bright islands inside that mark (eyes / nose).
+ * - Punch every enclosed bright island outside the mark (letter counters).
+ * Text-only images (no compact mark) punch all enclosed bright holes.
+ */
+export function punchHybridMarkTextHoles(
+  canvas: HTMLCanvasElement,
+  opts: { minLuma?: number } = {},
+): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+  const w = canvas.width;
+  const h = canvas.height;
+  const image = ctx.getImageData(0, 0, w, h);
+  const { data } = image;
+
+  let opaqueN = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] >= 16) opaqueN += 1;
+  }
+  if (opaqueN < 64) return canvas;
+
+  const minLuma = opts.minLuma ?? 170;
+  const darkId = new Int32Array(w * h);
+  const queue = new Int32Array(w * h);
+  type DarkComp = {
+    id: number;
+    size: number;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  const comps: DarkComp[] = [];
+  let nextDark = 1;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = y * w + x;
+      if (darkId[start]) continue;
+      const si = start * 4;
+      if (data[si + 3] < 200) continue;
+      if (luma(data[si], data[si + 1], data[si + 2]) >= 110) continue;
+
+      let qh = 0;
+      let qt = 0;
+      darkId[start] = nextDark;
+      queue[qt++] = start;
+      let size = 0;
+      let minX = x;
+      let maxX = x;
+      let minY = y;
+      let maxY = y;
+
+      while (qh < qt) {
+        const idx = queue[qh++];
+        size += 1;
+        const cx = idx % w;
+        const cy = (idx / w) | 0;
+        if (cx < minX) minX = cx;
+        if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy;
+        if (cy > maxY) maxY = cy;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const nidx = ny * w + nx;
+            if (darkId[nidx]) continue;
+            const ni = nidx * 4;
+            if (data[ni + 3] < 200) continue;
+            if (luma(data[ni], data[ni + 1], data[ni + 2]) >= 110) continue;
+            darkId[nidx] = nextDark;
+            queue[qt++] = nidx;
+          }
+        }
+      }
+
+      if (size >= 80) {
+        comps.push({ id: nextDark, size, minX, maxX, minY, maxY });
+      }
+      nextDark += 1;
+    }
+  }
+
+  // Pictogram = largest compact dark blob (not a long wordmark bar).
+  let mark: DarkComp | null = null;
+  for (const c of comps) {
+    const bw = c.maxX - c.minX + 1;
+    const bh = c.maxY - c.minY + 1;
+    const ar = bw / Math.max(1, bh);
+    if (ar > 1.85 || ar < 0.4) continue; // skip elongated wordmark runs
+    if (!mark || c.size > mark.size) mark = c;
+  }
+  // Text-only: no solid pictogram → treat everything as letters
+  if (mark && mark.size < opaqueN * 0.06) mark = null;
+
+  const markShort = mark
+    ? Math.min(mark.maxX - mark.minX + 1, mark.maxY - mark.minY + 1)
+    : Math.min(w, h);
+  const eyeRadius = Math.max(7, markShort * 0.11);
+  const eyeArea = Math.floor(Math.PI * eyeRadius * eyeRadius);
+
+  const brightLabel = new Int32Array(w * h);
+  let nextBright = 1;
+  const islands: { size: number; cells: number[]; inMark: boolean }[] = [];
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const start = y * w + x;
+      if (brightLabel[start]) continue;
+      const si = start * 4;
+      if (data[si + 3] < 200) continue;
+      if (luma(data[si], data[si + 1], data[si + 2]) < minLuma) continue;
+
+      let qh = 0;
+      let qt = 0;
+      let touchesClear = false;
+      let size = 0;
+      let markVotes = 0;
+      let darkVotes = 0;
+      brightLabel[start] = nextBright;
+      queue[qt++] = start;
+      const cells: number[] = [];
+
+      while (qh < qt) {
+        const idx = queue[qh++];
+        cells.push(idx);
+        size += 1;
+        const cx = idx % w;
+        const cy = (idx / w) | 0;
+        if (touchesTransparent(data, w, h, cx, cy, 1)) touchesClear = true;
+
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+              touchesClear = true;
+              continue;
+            }
+            const nidx = ny * w + nx;
+            const ni = nidx * 4;
+            const na = data[ni + 3];
+            if (na < 16) {
+              touchesClear = true;
+              continue;
+            }
+            if (brightLabel[nidx]) continue;
+            if (na < 200) continue;
+            const nL = luma(data[ni], data[ni + 1], data[ni + 2]);
+            if (nL < minLuma - 30) {
+              // Ink ring — vote which dark component owns this hole
+              darkVotes += 1;
+              if (mark && darkId[nidx] === mark.id) markVotes += 1;
+              continue;
+            }
+            brightLabel[nidx] = nextBright;
+            queue[qt++] = nidx;
+          }
+        }
+      }
+
+      if (!touchesClear && size >= 20) {
+        const inMark = Boolean(mark) && darkVotes > 0 && markVotes / darkVotes >= 0.45;
+        islands.push({ size, cells, inMark });
+      }
+      nextBright += 1;
+    }
+  }
+
+  let changed = false;
+  // No pictogram: keep moderate islands (ring centers / features); punch only large counters.
+  const fallbackKeep = Math.max(eyeArea, Math.floor(opaqueN * 0.02));
+  for (const island of islands) {
+    const keep = mark
+      ? island.inMark && island.size <= eyeArea
+      : island.size <= fallbackKeep;
+    if (keep) continue;
+    // Letter counters (or oversized mark holes) → transparent
+    for (const idx of island.cells) {
+      data[idx * 4 + 3] = 0;
+    }
+    changed = true;
+  }
+
+  if (!changed) return canvas;
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) throw new Error("Canvas 2D indisponible.");
+  outCtx.putImageData(image, 0, 0);
+  return out;
+}
+
+/** @deprecated Prefer punchHybridMarkTextHoles for mark+wordmark composites. */
+export function punchLargeEnclosedBrightHoles(
+  canvas: HTMLCanvasElement,
+  opts: { maxKeepRatio?: number; minLuma?: number } = {},
+): HTMLCanvasElement {
+  return punchHybridMarkTextHoles(canvas, { minLuma: opts.minLuma });
+}
+
+/**
  * Remove the solid background connected to the image edges.
  * Correct for logos / aplats (ex: fond noir d’un morpion) — unlike photo cutout.
  */
@@ -1398,7 +1643,7 @@ export type EdgeTighten = "normal" | "tight";
 export type ChromaOptions = {
   /** How aggressively to crop fringe after keying. */
   edge?: EdgeTighten;
-  /** exterior = keep enclosed details; interior = also key enclosed bg pockets */
+  /** exterior = keep closed holes; interior = clear them; auto = icon eyes + letter holes */
   scope?: CutScope;
 };
 
@@ -1410,7 +1655,7 @@ export function removeSolidBackground(
   if (!ctx) throw new Error("Canvas 2D indisponible.");
 
   const edge: EdgeTighten = opts.edge ?? "normal";
-  const scope: CutScope = opts.scope ?? "exterior";
+  const scope: CutScope = opts.scope ?? "auto";
   const p = edgeParams(edge);
 
   const w = canvas.width;
@@ -1552,5 +1797,8 @@ export function removeSolidBackground(
   const keyedCtx = keyed.getContext("2d");
   if (!keyedCtx) throw new Error("Canvas 2D indisponible.");
   keyedCtx.putImageData(image, 0, 0);
-  return cleanupCutoutEdges(keyed, edge, bg);
+  const cleaned = cleanupCutoutEdges(keyed, edge, bg);
+  // auto: pictogram eyes kept, letter counters cleared. exterior: keep all closed holes.
+  if (scope === "auto") return punchHybridMarkTextHoles(cleaned);
+  return cleaned;
 }

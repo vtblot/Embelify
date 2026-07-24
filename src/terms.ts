@@ -1,4 +1,3 @@
-import "./styles.css";
 import { BRAND } from "./brand";
 import { applyStaticI18n, detectLocale, setLocale, type Locale } from "./i18n";
 
@@ -17,6 +16,15 @@ function boot() {
   if (sister) {
     sister.href = BRAND.spektrografy.url;
     sister.textContent = BRAND.spektrografy.name;
+  }
+  const companyMark = document.getElementById("company-mark") as HTMLImageElement | null;
+  if (companyMark) {
+    companyMark.src = BRAND.baggero.logoSrc;
+    companyMark.alt = BRAND.baggero.name;
+    companyMark.onerror = () => {
+      companyMark.onerror = null;
+      companyMark.src = BRAND.baggero.markSrc;
+    };
   }
   applyStaticI18n();
 }

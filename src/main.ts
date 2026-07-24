@@ -1,4 +1,3 @@
-import "./styles.css";
 import { BRAND } from "./brand";
 import {
   applyStaticI18n,
@@ -30,8 +29,9 @@ import {
 } from "./lib/session";
 
 const form = document.getElementById("pipeline-form") as HTMLFormElement;
-const dropzone = document.getElementById("dropzone") as HTMLLabelElement;
+const dropzone = document.getElementById("dropzone") as HTMLElement;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
+const fileBrowse = document.getElementById("file-browse") as HTMLButtonElement | null;
 const fileName = document.getElementById("file-name") as HTMLSpanElement;
 const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLParagraphElement;
@@ -63,6 +63,10 @@ const svgPaletteInput = document.getElementById("svg_palette") as HTMLInputEleme
 const svgPaletteWrap = document.getElementById("svg-palette-wrap") as HTMLElement;
 const svgPaletteValue = document.getElementById("svg-palette-value") as HTMLElement;
 const svgHint = document.getElementById("svg-hint") as HTMLParagraphElement;
+const svgRecipesWrap = document.getElementById("svg-recipes-wrap") as HTMLElement;
+const svgAdvancedWrap = document.getElementById("svg-advanced-wrap") as HTMLElement | null;
+const svgPaletteLow = document.getElementById("svg-palette-low") as HTMLElement;
+const svgPaletteHigh = document.getElementById("svg-palette-high") as HTMLElement;
 const langSelect = document.getElementById("lang-select") as HTMLSelectElement;
 const sisterLink = document.getElementById("sister-link") as HTMLAnchorElement;
 
@@ -102,6 +106,34 @@ function syncBgUi() {
   }
 }
 
+const SVG_RECIPES: Record<
+  string,
+  { mode: SvgMode; detail: number; palette: number }
+> = {
+  logo: { mode: "logo", detail: 7, palette: 4 },
+  "logo-flat": { mode: "logo", detail: 7, palette: 3 },
+  "logo-sharp": { mode: "logo", detail: 9, palette: 4 },
+  photo: { mode: "general", detail: 7, palette: 16 },
+};
+
+function applySvgRecipe(id: string, run = true) {
+  const recipe = SVG_RECIPES[id];
+  if (!recipe) return;
+  toSvgToggle.checked = true;
+  svgModeSelect.value = recipe.mode;
+  svgDetailInput.value = String(recipe.detail);
+  svgPaletteInput.value = String(recipe.palette);
+  syncSvgUi();
+  markActiveRecipe(id);
+  if (run) scheduleLiveRun();
+}
+
+function markActiveRecipe(id: string | null) {
+  document.querySelectorAll<HTMLButtonElement>("[data-svg-recipe]").forEach((btn) => {
+    btn.classList.toggle("is-active", id !== null && btn.dataset.svgRecipe === id);
+  });
+}
+
 function syncSvgUi() {
   const svgOn = toSvgToggle.checked;
   const mode = svgModeSelect.value as SvgMode;
@@ -109,22 +141,38 @@ function syncSvgUi() {
   svgDetailWrap.hidden = !svgOn;
   svgPaletteWrap.hidden = !svgOn;
   svgHint.hidden = !svgOn;
+  if (svgRecipesWrap) svgRecipesWrap.hidden = !svgOn;
+  if (svgAdvancedWrap) svgAdvancedWrap.hidden = !svgOn;
 
   if (svgOn) {
     // Logo mode: palette max 4 (B&W / gray marks)
     if (mode === "logo") {
       svgPaletteInput.max = "4";
       if (Number(svgPaletteInput.value) > 4) svgPaletteInput.value = "3";
+      if (svgPaletteHigh) svgPaletteHigh.textContent = t("step3.palette.high.logo");
     } else {
       const wasLogoCap = svgPaletteInput.max === "4";
       svgPaletteInput.max = "32";
       if (wasLogoCap && Number(svgPaletteInput.value) <= 4) {
         svgPaletteInput.value = "12";
       }
+      if (svgPaletteHigh) svgPaletteHigh.textContent = t("step3.palette.high");
     }
+    if (svgPaletteLow) svgPaletteLow.textContent = t("step3.palette.low");
     svgDetailValue.textContent = svgDetailInput.value;
     svgPaletteValue.textContent = svgPaletteInput.value;
     svgHint.textContent = t(mode === "logo" ? "step3.hint.logo" : "step3.hint.general");
+
+    // Highlight matching recipe if sliders match a preset
+    const match = Object.entries(SVG_RECIPES).find(
+      ([, r]) =>
+        r.mode === mode &&
+        r.detail === Number(svgDetailInput.value) &&
+        r.palette === Number(svgPaletteInput.value),
+    );
+    markActiveRecipe(match?.[0] ?? null);
+  } else {
+    markActiveRecipe(null);
   }
 }
 
@@ -174,6 +222,7 @@ function resetPreviewUi() {
   previewImg.removeAttribute("src");
   previewSvg.hidden = true;
   previewSvg.innerHTML = "";
+  previewFrame?.classList.remove("is-svg");
   stepBadge.hidden = true;
   stepBadge.classList.remove("is-loading", "is-ready");
   downloadBtn.disabled = true;
@@ -243,6 +292,7 @@ async function showCanvasPreview(
   });
   previewSvg.hidden = true;
   previewSvg.innerHTML = "";
+  previewFrame?.classList.remove("is-svg");
   preview.hidden = false;
   downloadBtn.disabled = true;
 
@@ -261,6 +311,7 @@ function showSvgPreview(svg: string, generation: number) {
   previewSvg.innerHTML = svg;
   previewSvg.hidden = false;
   preview.hidden = false;
+  previewFrame?.classList.add("is-svg");
   downloadBtn.disabled = false;
 
   const vb = svg.match(/viewBox=["']\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s*["']/i);
@@ -349,6 +400,7 @@ async function runLive(reason: "auto" | "manual" = "auto") {
       });
       previewSvg.hidden = true;
       previewSvg.innerHTML = "";
+      previewFrame?.classList.remove("is-svg");
       preview.hidden = false;
       await waitForImgPaint(previewUrl);
       if (myGen !== runGeneration) return;
@@ -408,6 +460,15 @@ function refreshI18n() {
     sisterLink.href = BRAND.spektrografy.url;
     sisterLink.textContent = BRAND.spektrografy.name;
   }
+  const companyMark = document.getElementById("company-mark") as HTMLImageElement | null;
+  if (companyMark) {
+    companyMark.src = BRAND.baggero.logoSrc;
+    companyMark.alt = BRAND.baggero.name;
+    companyMark.onerror = () => {
+      companyMark.onerror = null;
+      companyMark.src = BRAND.baggero.markSrc;
+    };
+  }
   // If idle with default status, refresh it
   if (!getSourceFile() && !fileInput.files?.[0] && !statusEl.classList.contains("is-error")) {
     setStatus(t("status.drop"));
@@ -426,47 +487,98 @@ bgModeSelect.addEventListener("change", () => {
 edgeTightenSelect.addEventListener("change", scheduleLiveRun);
 cutScopeSelect.addEventListener("change", scheduleLiveRun);
 
-["dragenter", "dragover"].forEach((evt) => {
-  dropzone.addEventListener(evt, (e) => {
-    e.preventDefault();
-    dropzone.classList.add("is-drag");
-  });
-});
-
-["dragleave", "drop"].forEach((evt) => {
-  dropzone.addEventListener(evt, (e) => {
-    e.preventDefault();
-    dropzone.classList.remove("is-drag");
-  });
-});
-
 function maybePreloadModels() {
   const mode = bgModeSelect.value as BgMode;
   // Heavy rembg/ONNX only when Photo or Auto might need it
   if (mode === "ai" || mode === "auto") preloadModels();
 }
 
-dropzone.addEventListener("drop", (e) => {
-  const file = e.dataTransfer?.files?.[0];
+function takeFile(file: File | null | undefined) {
   if (!file) return;
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  fileInput.files = dt.files;
+  if (!file.type.startsWith("image/") && !/\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(file.name)) {
+    setStatus(t("status.needImage"), true);
+    return;
+  }
+  try {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+  } catch {
+    // Some browsers block programmatic FileList assignment — session still gets the File.
+  }
   assignSource(file);
   maybePreloadModels();
   scheduleLiveRun();
+}
+
+["dragenter", "dragover"].forEach((evt) => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.add("is-drag");
+  });
+});
+
+dropzone.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  const related = e.relatedTarget as Node | null;
+  if (related && dropzone.contains(related)) return;
+  dropzone.classList.remove("is-drag");
+});
+
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  dropzone.classList.remove("is-drag");
+  takeFile(e.dataTransfer?.files?.[0]);
+});
+
+// Whole-window drop — users often miss the small dashed box
+["dragenter", "dragover"].forEach((evt) => {
+  document.addEventListener(evt, (e) => {
+    if (!(e as DragEvent).dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();
+  });
+});
+document.addEventListener("drop", (e) => {
+  const files = e.dataTransfer?.files;
+  if (!files?.length) return;
+  e.preventDefault();
+  dropzone.classList.remove("is-drag");
+  takeFile(files[0]);
+});
+
+function openFilePicker() {
+  fileInput.click();
+}
+
+fileBrowse?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  openFilePicker();
+});
+dropzone.addEventListener("click", (e) => {
+  if (e.target === fileBrowse) return;
+  openFilePicker();
+});
+dropzone.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    openFilePicker();
+  }
 });
 
 fileInput.addEventListener("change", () => {
-  assignSource(fileInput.files?.[0] ?? null);
-  if (fileInput.files?.[0]) {
-    maybePreloadModels();
-    scheduleLiveRun();
-  }
+  takeFile(fileInput.files?.[0] ?? null);
 });
 
 upscaleSelect.addEventListener("change", scheduleLiveRun);
 toSvgToggle.addEventListener("change", () => {
+  if (toSvgToggle.checked) {
+    // Always land on the usable Logo path — users were stuck on Photo/General.
+    applySvgRecipe("logo");
+    return;
+  }
   syncSvgUi();
   scheduleLiveRun();
 });
@@ -476,11 +588,19 @@ svgModeSelect.addEventListener("change", () => {
 });
 svgDetailInput.addEventListener("input", () => {
   svgDetailValue.textContent = svgDetailInput.value;
+  markActiveRecipe(null);
   scheduleLiveRun();
 });
 svgPaletteInput.addEventListener("input", () => {
   svgPaletteValue.textContent = svgPaletteInput.value;
+  markActiveRecipe(null);
   scheduleLiveRun();
+});
+document.querySelectorAll<HTMLButtonElement>("[data-svg-recipe]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const id = btn.dataset.svgRecipe;
+    if (id) applySvgRecipe(id);
+  });
 });
 
 downloadBtn.addEventListener("click", () => {

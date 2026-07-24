@@ -6,6 +6,8 @@ export type Dict = {
   "hero.lede": string;
   "dropzone.title": string;
   "dropzone.hint": string;
+  "dropzone.browse": string;
+  "dropzone.aria": string;
   "options.legend": string;
   "options.order": string;
   "step1.label": string;
@@ -25,6 +27,7 @@ export type Dict = {
   "step2.edges.normal": string;
   "step2.edges.tight": string;
   "step2.scope": string;
+  "step2.scope.auto": string;
   "step2.scope.exterior": string;
   "step2.scope.interior": string;
   "step3.label": string;
@@ -33,12 +36,20 @@ export type Dict = {
   "step3.mode": string;
   "step3.mode.logo": string;
   "step3.mode.general": string;
+  "step3.recipes": string;
+  "step3.recipes.aria": string;
+  "step3.recipe.logo": string;
+  "step3.recipe.logoFlat": string;
+  "step3.recipe.logoSharp": string;
+  "step3.recipe.photo": string;
+  "step3.advanced": string;
   "step3.detail": string;
   "step3.detail.low": string;
   "step3.detail.high": string;
   "step3.palette": string;
   "step3.palette.low": string;
   "step3.palette.high": string;
+  "step3.palette.high.logo": string;
   "step3.hint": string;
   "step3.hint.logo": string;
   "step3.hint.general": string;
@@ -46,6 +57,7 @@ export type Dict = {
   "actions.recompute.hint": string;
   "status.drop": string;
   "status.choose": string;
+  "status.needImage": string;
   "status.needOption": string;
   "status.updating": string;
   "status.processing": string;
@@ -82,6 +94,7 @@ export type Dict = {
   "badge.done.ready": string;
   "footer.privacy": string;
   "footer.terms": string;
+  "footer.company": string;
   "footer.sister": string;
   "footer.lang": string;
   "sister.blurb": string;
@@ -111,8 +124,10 @@ export const en: Dict = {
   "header.tagline": "Local · live preview · download",
   "hero.lede":
     "Tweak the options: the preview updates at every step. Download the result — nothing is stored.",
-  "dropzone.title": "Drop an image",
-  "dropzone.hint": "PNG, JPEG, WebP — never uploaded or saved",
+  "dropzone.title": "Drop an image here",
+  "dropzone.hint": "or click the button — PNG, JPEG, WebP",
+  "dropzone.browse": "Choose a file",
+  "dropzone.aria": "Choose or drop an image",
   "options.legend": "Options",
   "options.order": "Each change refreshes the preview · order: background → upscale → SVG",
   "step1.label": "Upscale",
@@ -131,33 +146,43 @@ export const en: Dict = {
   "step2.edges": "Edges",
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Tighter — crop ~5px fringe / arcs",
-  "step2.scope": "Contours",
-  "step2.scope.exterior": "Exterior only — keep eyes / holes",
-  "step2.scope.interior": "Exterior + interior — also clear holes",
+  "step2.scope": "Holes",
+  "step2.scope.auto": "Auto — keep small icon details, clear letter holes",
+  "step2.scope.exterior": "Keep closed holes — eyes & letter fills stay",
+  "step2.scope.interior": "Clear closed holes — letters, rings & eyes",
   "step3.label": "Convert to SVG",
   "step3.optional": "(optional)",
   "step3.desc":
-    "Vectorize the result. Logo mode for B&W / gray marks; General for photos and multi-color art. Sliders set contour detail and palette levels.",
-  "step3.mode": "Mode",
-  "step3.mode.logo": "Logo — black / white / gray marks",
-  "step3.mode.general": "General — photos & multi-color",
-  "step3.detail": "Contour detail",
-  "step3.detail.low": "Simple",
-  "step3.detail.high": "Fine",
-  "step3.palette": "Palette levels",
-  "step3.palette.low": "2 (B&W)",
-  "step3.palette.high": "32 (rich)",
+    "Turn the result into a vector file. Choose the style that matches your image.",
+  "step3.mode": "Image type",
+  "step3.mode.logo": "Logo",
+  "step3.mode.general": "Photo or illustration",
+  "step3.recipes": "Style",
+  "step3.recipes.aria": "SVG styles",
+  "step3.recipe.logo": "Logo with shading",
+  "step3.recipe.logoFlat": "Simple black logo",
+  "step3.recipe.logoSharp": "Logo, sharper edges",
+  "step3.recipe.photo": "Photo or illustration",
+  "step3.advanced": "Fine-tune (optional)",
+  "step3.detail": "Edge detail",
+  "step3.detail.low": "Softer",
+  "step3.detail.high": "Sharper",
+  "step3.palette": "Colors kept",
+  "step3.palette.low": "Few",
+  "step3.palette.high": "Many",
+  "step3.palette.high.logo": "With gray",
   "step3.hint":
-    "Palette levels = how many tones to keep after posterize (not brand color names). B&W logo: 2–4. Photo: 12–24.",
+    "How many colors to keep in the vector. Logos need few; photos need more.",
   "step3.hint.logo":
-    "Logo flattens to dark + white holes (eyes, letters). Palette is capped at 4. Raise detail for sharper edges.",
+    "Pick a style above. Open Fine-tune only if the edges or grays need a small tweak.",
   "step3.hint.general":
-    "General keeps shading and many tones. Low detail = cleaner paths; high detail = more nodes. Use 8–16 levels for soft photos.",
+    "For photos and colorful images. Adjust the sliders until the preview looks right.",
   "actions.recompute": "Recompute",
   "actions.recompute.hint":
     "Forces a new run with the current options. Changing a setting already refreshes the preview automatically.",
   "status.drop": "Drop an image to see a live preview.",
   "status.choose": "Choose an image.",
+  "status.needImage": "Please choose an image file (PNG, JPEG, WebP…).",
   "status.needOption": "Enable at least one option to see a result.",
   "status.updating": "Updating preview (please wait while models load)…",
   "status.processing": "Processing…",
@@ -194,16 +219,17 @@ export const en: Dict = {
   "badge.done.ready": "Ready to download",
   "footer.privacy": "No user storage · processing 100% in your browser",
   "footer.terms": "Terms of use",
-  "footer.sister": "Also from us",
+  "footer.company": "Embelify is a Baggero tool",
+  "footer.sister": "Also",
   "footer.lang": "Language",
-  "sister.blurb": "Another tool from the same company — separate product & domain.",
+  "sister.blurb": "Same company as Spektrografy — separate product & domain.",
   "terms.title": "Embelify — Terms of use",
   "terms.back": "← Back to Embelify",
   "terms.h1": "Terms of use",
   "terms.updated": "Last updated: July 17, 2026",
   "terms.s1.h": "1. Service",
   "terms.s1.p":
-    "Embelify is a browser-based image tool (upscale, background removal, SVG). Processing runs locally on your device. Embelify is operated by the same company as Spektrografy; each product has its own domain and purpose.",
+    "Embelify is a browser-based image tool (upscale, background removal, SVG) from Baggero. Processing runs locally on your device. Spektrografy is another Baggero product; each has its own domain and purpose.",
   "terms.s2.h": "2. No upload / no storage",
   "terms.s2.p":
     "Images are not uploaded to our servers for processing. Results are delivered by download. Closing the tab clears in-session assets. Browser caches for AI models may remain on your device.",
@@ -218,10 +244,10 @@ export const en: Dict = {
     "Paid plans, accounts, or credits may be introduced later. Separate commercial terms will apply and will be shown before purchase.",
   "terms.s6.h": "6. Sister products",
   "terms.s6.p":
-    "Links to Spektrografy or other sister tools are provided for convenience. Each product has its own terms and privacy policy.",
+    "Links to Spektrografy or other Baggero tools are provided for convenience. Each product has its own terms and privacy policy.",
   "terms.s7.h": "7. Contact",
   "terms.s7.p":
-    "For questions about these terms, contact the operator via the Spektrografy / Embelify company channels published on the product sites.",
+    "For questions about these terms, contact Baggero via the channels published on the Embelify / Spektrografy product sites.",
   "workspace.aria": "Workspace",
 };
 
@@ -230,8 +256,10 @@ export const fr: Dict = {
   "header.tagline": "Local · aperçu live · téléchargement",
   "hero.lede":
     "Ajustez les options : l’aperçu se met à jour à chaque étape. Téléchargez le résultat — rien n’est stocké.",
-  "dropzone.title": "Déposez une image",
-  "dropzone.hint": "PNG, JPEG, WebP — jamais envoyé ni sauvegardé",
+  "dropzone.title": "Déposez une image ici",
+  "dropzone.hint": "ou cliquez sur le bouton — PNG, JPEG, WebP",
+  "dropzone.browse": "Choisir un fichier",
+  "dropzone.aria": "Choisir ou déposer une image",
   "options.legend": "Options",
   "options.order": "Chaque changement recalcule l’aperçu · ordre : fond → upscale → SVG",
   "step1.label": "Upscale",
@@ -254,33 +282,43 @@ export const fr: Dict = {
   "step2.edges": "Bords",
   "step2.edges.normal": "Normal",
   "step2.edges.tight": "Serré — coupe ~5px de halo / arcs",
-  "step2.scope": "Contours",
-  "step2.scope.exterior": "Extérieur seul — garde yeux / trous",
-  "step2.scope.interior": "Extérieur + intérieur — vide aussi les trous",
+  "step2.scope": "Trous",
+  "step2.scope.auto": "Auto — garde les petits détails du picto, vide les lettres",
+  "step2.scope.exterior": "Garder les trous fermés — yeux et lettres pleines",
+  "step2.scope.interior": "Vider les trous fermés — lettres, anneaux et yeux",
   "step3.label": "Convertir en SVG",
   "step3.optional": "(optionnel)",
   "step3.desc":
-    "Vectorise le résultat. Mode Logo pour aplats N&B / gris ; Général pour photos et images multicolores. Les curseurs règlent le détail et les niveaux de palette.",
-  "step3.mode": "Mode",
-  "step3.mode.logo": "Logo — aplats noir / blanc / gris",
-  "step3.mode.general": "Général — photos & multicolore",
-  "step3.detail": "Détail des contours",
-  "step3.detail.low": "Simple",
-  "step3.detail.high": "Fin",
-  "step3.palette": "Niveaux de palette",
-  "step3.palette.low": "2 (N&B)",
-  "step3.palette.high": "32 (riche)",
+    "Transforme le résultat en fichier vectoriel. Choisissez le style qui correspond à votre image.",
+  "step3.mode": "Type d’image",
+  "step3.mode.logo": "Logo",
+  "step3.mode.general": "Photo ou illustration",
+  "step3.recipes": "Style",
+  "step3.recipes.aria": "Styles SVG",
+  "step3.recipe.logo": "Logo avec ombres",
+  "step3.recipe.logoFlat": "Logo noir simple",
+  "step3.recipe.logoSharp": "Logo, contours plus nets",
+  "step3.recipe.photo": "Photo ou illustration",
+  "step3.advanced": "Ajuster (optionnel)",
+  "step3.detail": "Précision des bords",
+  "step3.detail.low": "Plus doux",
+  "step3.detail.high": "Plus net",
+  "step3.palette": "Couleurs gardées",
+  "step3.palette.low": "Peu",
+  "step3.palette.high": "Beaucoup",
+  "step3.palette.high.logo": "Avec gris",
   "step3.hint":
-    "Niveaux de palette = combien de tons garder après posterisation (pas les « couleurs de marque »). Logo N&B : 2–4. Photo : 12–24.",
+    "Combien de couleurs garder dans le vectoriel. Un logo en a besoin de peu ; une photo, de plus.",
   "step3.hint.logo":
-    "Logo aplatit en sombre + blancs fermés (yeux, lettres). Palette plafonnée à 4. Montez le détail pour des contours plus nets.",
+    "Choisissez un style ci-dessus. Ouvrez Ajuster seulement si les bords ou les gris demandent un petit coup de pouce.",
   "step3.hint.general":
-    "Général conserve ombres et tons. Peu de détail = chemins plus propres ; beaucoup = plus de nœuds. Photos douces : 8–16 niveaux.",
+    "Pour les photos et images en couleurs. Déplacez les curseurs jusqu’à ce que l’aperçu vous convienne.",
   "actions.recompute": "Recalculer",
   "actions.recompute.hint":
     "Relance le traitement avec les options actuelles. Changer une option rafraîchit déjà l’aperçu automatiquement.",
   "status.drop": "Déposez une image pour voir l’aperçu en direct.",
   "status.choose": "Choisissez une image.",
+  "status.needImage": "Choisissez un fichier image (PNG, JPEG, WebP…).",
   "status.needOption": "Activez au moins une option pour voir un résultat.",
   "status.updating": "Mise à jour de l’aperçu (patientez pendant le chargement)…",
   "status.processing": "Traitement en cours…",
@@ -318,17 +356,18 @@ export const fr: Dict = {
   "badge.done.ready": "Prêt à télécharger",
   "footer.privacy": "Aucun stockage utilisateur · traitement 100 % dans votre navigateur",
   "footer.terms": "CGU",
-  "footer.sister": "Aussi de notre part",
+  "footer.company": "Embelify est un outil Baggero",
+  "footer.sister": "Aussi",
   "footer.lang": "Langue",
   "sister.blurb":
-    "Un autre outil de la même entreprise — produit et domaine distincts.",
+    "Même entreprise que Spektrografy — produit et domaine distincts.",
   "terms.title": "Embelify — Conditions générales d’utilisation",
   "terms.back": "← Retour à Embelify",
   "terms.h1": "Conditions générales d’utilisation",
   "terms.updated": "Dernière mise à jour : 17 juillet 2026",
   "terms.s1.h": "1. Service",
   "terms.s1.p":
-    "Embelify est un outil d’image dans le navigateur (upscale, fond transparent, SVG). Le traitement s’exécute localement sur votre appareil. Embelify est opéré par la même entreprise que Spektrografy ; chaque produit a son propre domaine et sa propre finalité.",
+    "Embelify est un outil d’image dans le navigateur (upscale, fond transparent, SVG) édité par Baggero. Le traitement s’exécute localement sur votre appareil. Spektrografy est un autre produit Baggero ; chaque produit a son propre domaine et sa propre finalité.",
   "terms.s2.h": "2. Pas d’envoi / pas de stockage",
   "terms.s2.p":
     "Les images ne sont pas envoyées sur nos serveurs pour traitement. Les résultats sont livrés par téléchargement. Fermer l’onglet efface les assets de session. Le cache navigateur des modèles IA peut rester sur votre appareil.",
@@ -343,9 +382,9 @@ export const fr: Dict = {
     "Des offres payantes, comptes ou crédits pourront être ajoutés plus tard. Des conditions commerciales distinctes s’appliqueront et seront présentées avant tout achat.",
   "terms.s6.h": "6. Produits sœurs",
   "terms.s6.p":
-    "Les liens vers Spektrografy ou d’autres outils sœurs sont fournis pour information. Chaque produit a ses propres CGU et politique de confidentialité.",
+    "Les liens vers Spektrografy ou d’autres outils Baggero sont fournis pour information. Chaque produit a ses propres CGU et politique de confidentialité.",
   "terms.s7.h": "7. Contact",
   "terms.s7.p":
-    "Pour toute question relative aux présentes CGU, contactez l’opérateur via les canaux Spektrografy / Embelify indiqués sur les sites produits.",
+    "Pour toute question relative aux présentes CGU, contactez Baggero via les canaux indiqués sur les sites Embelify / Spektrografy.",
   "workspace.aria": "Zone de travail",
 };

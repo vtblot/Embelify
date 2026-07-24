@@ -4,9 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="meta.title">Embelify — Upscale · Cutout · SVG</title>
+  <!-- Critical paint: avoid blank/unstyled flash while the stylesheet resolves -->
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #0e1612; color: #e7f0ea; }
+    body { font-family: Figtree, system-ui, sans-serif; }
+  </style>
+  <!-- App CSS in <head> (not via JS) so first paint is styled — JS import caused FOUC -->
+  <link rel="stylesheet" href="/src/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" />
+  <!-- Fonts non-blocking: app CSS paints first, then Syne/Figtree swap in -->
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap"
+    media="print"
+    onload="this.media='all'"
+  />
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" />
+  </noscript>
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"></div>
@@ -33,13 +49,16 @@
 
     <section class="workspace" data-i18n-aria="workspace.aria" aria-label="Workspace">
       <form id="pipeline-form" class="pipeline">
-        <label class="dropzone" id="dropzone" for="file-input">
-          <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" required />
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" data-i18n-aria="dropzone.aria" aria-label="Choose or drop an image">
+          <input type="file" id="file-input" name="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg" required />
           <span class="dropzone-orbit" aria-hidden="true"></span>
-          <span class="dropzone-title" data-i18n="dropzone.title">Drop an image</span>
-          <span class="dropzone-hint" data-i18n="dropzone.hint">PNG, JPEG, WebP — never uploaded or saved</span>
+          <span class="dropzone-title" data-i18n="dropzone.title">Drop an image here</span>
+          <span class="dropzone-hint" data-i18n="dropzone.hint">or click the button — PNG, JPEG, WebP</span>
+          <button type="button" class="dropzone-browse" id="file-browse" data-i18n="dropzone.browse">
+            Choose a file
+          </button>
           <span class="dropzone-file" id="file-name" hidden></span>
-        </label>
+        </div>
 
         <fieldset class="steps">
           <legend data-i18n="options.legend">Options</legend>
@@ -87,10 +106,11 @@
               </select>
             </div>
             <div class="step-extra" id="cut-scope-wrap">
-              <label class="sub-label" for="cut_scope" data-i18n="step2.scope">Contours</label>
+              <label class="sub-label" for="cut_scope" data-i18n="step2.scope">Holes</label>
               <select id="cut_scope" name="cut_scope">
-                <option value="exterior" selected data-i18n="step2.scope.exterior">Exterior only — keep eyes / holes</option>
-                <option value="interior" data-i18n="step2.scope.interior">Exterior + interior — also clear holes</option>
+                <option value="auto" selected data-i18n="step2.scope.auto">Auto — keep icon eyes, clear letter holes</option>
+                <option value="exterior" data-i18n="step2.scope.exterior">Keep closed holes — eyes &amp; letter fills stay</option>
+                <option value="interior" data-i18n="step2.scope.interior">Clear closed holes — letters, rings &amp; eyes</option>
               </select>
             </div>
             <p class="step-hint" id="bg-hint" data-i18n="step2.hint.auto">Picks solid-color for logos, subject cutout for photos.</p>
@@ -108,38 +128,60 @@
                 <span class="switch-ui" aria-hidden="true"></span>
               </label>
             </div>
-            <p class="step-desc" data-i18n="step3.desc">Vectorize the result. Logo mode for B&amp;W marks; General for photos / multi-color art. Use the sliders to tune detail and palette levels.</p>
-            <div class="step-extra" id="svg-mode-wrap" hidden>
-              <label class="sub-label" for="svg_mode" data-i18n="step3.mode">Mode</label>
-              <select id="svg_mode" name="svg_mode">
-                <option value="logo" selected data-i18n="step3.mode.logo">Logo — black / white / gray marks</option>
-                <option value="general" data-i18n="step3.mode.general">General — photos &amp; multi-color</option>
-              </select>
-            </div>
-            <div class="step-extra" id="svg-detail-wrap" hidden>
-              <div class="slider-head">
-                <label class="sub-label" for="svg_detail" data-i18n="step3.detail">Contour detail</label>
-                <span class="slider-value" id="svg-detail-value">5</span>
-              </div>
-              <input type="range" id="svg_detail" name="svg_detail" min="1" max="10" step="1" value="5" />
-              <div class="slider-ends">
-                <span data-i18n="step3.detail.low">Simple</span>
-                <span data-i18n="step3.detail.high">Fine</span>
-              </div>
-            </div>
-            <div class="step-extra" id="svg-palette-wrap" hidden>
-              <div class="slider-head">
-                <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Palette levels</label>
-                <span class="slider-value" id="svg-palette-value">3</span>
-              </div>
-              <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="3" />
-              <div class="slider-ends">
-                <span data-i18n="step3.palette.low">2 (B&amp;W)</span>
-                <span data-i18n="step3.palette.high">32 (rich)</span>
+            <p class="step-desc" data-i18n="step3.desc">Turn the result into a vector file. Choose the style that matches your image.</p>
+            <div class="step-extra svg-recipes" id="svg-recipes-wrap" hidden>
+              <span class="sub-label" data-i18n="step3.recipes">Style</span>
+              <div class="recipe-row" role="group" data-i18n-aria="step3.recipes.aria" aria-label="SVG styles">
+                <button type="button" class="recipe recipe-primary" data-svg-recipe="logo" data-i18n="step3.recipe.logo">
+                  Logo with shading
+                </button>
+                <button type="button" class="recipe" data-svg-recipe="logo-flat" data-i18n="step3.recipe.logoFlat">
+                  Simple black logo
+                </button>
+                <button type="button" class="recipe" data-svg-recipe="logo-sharp" data-i18n="step3.recipe.logoSharp">
+                  Logo, sharper edges
+                </button>
+                <button type="button" class="recipe recipe-muted" data-svg-recipe="photo" data-i18n="step3.recipe.photo">
+                  Photo or illustration
+                </button>
               </div>
             </div>
+            <details class="step-extra svg-advanced" id="svg-advanced-wrap" hidden>
+              <summary data-i18n="step3.advanced">Fine-tune (optional)</summary>
+              <div class="svg-advanced-body">
+                <div class="step-extra" id="svg-mode-wrap" hidden>
+                  <label class="sub-label" for="svg_mode" data-i18n="step3.mode">Image type</label>
+                  <select id="svg_mode" name="svg_mode">
+                    <option value="logo" selected data-i18n="step3.mode.logo">Logo</option>
+                    <option value="general" data-i18n="step3.mode.general">Photo or illustration</option>
+                  </select>
+                </div>
+                <div class="step-extra" id="svg-detail-wrap" hidden>
+                  <div class="slider-head">
+                    <label class="sub-label" for="svg_detail" data-i18n="step3.detail">Edge detail</label>
+                    <span class="slider-value" id="svg-detail-value">7</span>
+                  </div>
+                  <input type="range" id="svg_detail" name="svg_detail" min="1" max="10" step="1" value="7" />
+                  <div class="slider-ends">
+                    <span data-i18n="step3.detail.low">Softer</span>
+                    <span data-i18n="step3.detail.high">Sharper</span>
+                  </div>
+                </div>
+                <div class="step-extra" id="svg-palette-wrap" hidden>
+                  <div class="slider-head">
+                    <label class="sub-label" for="svg_palette" data-i18n="step3.palette">Colors kept</label>
+                    <span class="slider-value" id="svg-palette-value">4</span>
+                  </div>
+                  <input type="range" id="svg_palette" name="svg_palette" min="2" max="32" step="1" value="4" />
+                  <div class="slider-ends">
+                    <span id="svg-palette-low" data-i18n="step3.palette.low">Few</span>
+                    <span id="svg-palette-high" data-i18n="step3.palette.high">Many</span>
+                  </div>
+                </div>
+              </div>
+            </details>
             <p class="step-hint" id="svg-hint" hidden data-i18n="step3.hint.logo">
-              Palette levels = how many tones to keep (not brand colors). Logo B&amp;W/gray: 2–4. Photos: 12–24.
+              Pick a style above. Open Fine-tune only if the edges or grays need a small tweak.
             </p>
           </div>
         </fieldset>
@@ -197,8 +239,24 @@
       </nav>
     </div>
     <div class="sister">
-      <p class="sister-label"><span data-i18n="footer.sister">Also from us</span> · <a id="sister-link" href="https://spektrografy.com" rel="noopener noreferrer" target="_blank">Spektrografy</a></p>
-      <p class="sister-blurb" data-i18n="sister.blurb">Another tool from the same company — separate product & domain.</p>
+      <div class="company- cred">
+        <img
+          class="company-mark"
+          id="company-mark"
+          src="/baggero-logo.png"
+          alt="Baggero"
+          width="120"
+          height="80"
+          decoding="async"
+        />
+        <p class="company-line">
+          <span data-i18n="footer.company">Embelify is a Baggero tool</span>
+          <span class="company-sep" aria-hidden="true">·</span>
+          <span data-i18n="footer.sister">Also</span>
+          <a id="sister-link" href="https://spektrografy.com" rel="noopener noreferrer" target="_blank">Spektrografy</a>
+        </p>
+      </div>
+      <p class="sister-blurb" data-i18n="sister.blurb">Same company as Spektrografy — separate product &amp; domain.</p>
     </div>
   </footer>
 
